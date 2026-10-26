@@ -1,6 +1,6 @@
 ---
 name: scenario-generator
-description: Jira kartından (story, task, bug) ISTQB tabanlı manuel test senaryoları üretir ve Türkçe Gherkin ile yazar. Kartın tüm alanlarını (açıklama, kabul kriterleri, ortam, yorumlar, ekler, bağlı kartlar, özel alanlar) okur, kartın senaryo üretmeye yeterli olup olmadığını değerlendirir, eksik ve çelişkili bilgiler için soru üretir. Çıktı references/output-schema.json formatında tek bir JSON'dur; .feature dosyası ve kart yeterlilik raporu scripts/render_gherkin.py ile oluşturulur. Bir Jira kartı, issue key veya kullanıcı hikâyesi verilip test senaryosu, test case, test durumu ya da Gherkin/feature istendiğinde kullan.
+description: Jira kartının (story, task, bug) kullanıcının paylaştığı XML dışa aktarımından ISTQB tabanlı manuel test senaryoları üretir ve Türkçe Gherkin ile yazar. Jira'ya bağlanmaz, ek indirmez. XML'deki tüm alanları (açıklama, kabul kriterleri, ortam, yorumlar, ek listesi, bağlı kartlar, özel alanlar) okur, kartın senaryo üretmeye yeterli olup olmadığını değerlendirir, eksik ve çelişkili bilgiler için soru üretir. Çıktı references/output-schema.json formatında tek bir JSON'dur; .feature dosyası ve kart yeterlilik raporu scripts/render_gherkin.py ile oluşturulur. Jira XML'i, kart içeriği veya kullanıcı hikâyesi verilip test senaryosu, test case, test durumu ya da Gherkin/feature istendiğinde kullan.
 ---
 
 # Scenario Generator
@@ -9,7 +9,10 @@ Jira kartını **test esası** (test basis) kabul eder ve ISTQB test sürecinin
 analiz → tasarım → uygulama adımlarını izleyerek **manuel test senaryoları**
 üretir.
 
-- **Girdi:** kartın tüm alanları, yorumları, ekleri ve bağlı kartları.
+- **Girdi:** kullanıcının paylaştığı Jira XML dışa aktarımı (kart → Dışa
+  aktar → XML). Alanlar, yorumlar, ek listesi ve bağlı kart anahtarları
+  buradan okunur. Jira'ya bağlanılmaz, ekler indirilmez; XML'de olmayan bilgi
+  `not_provided` olarak kaydedilir (`card-analysis-rules.md` §9).
 - **Agent'ın çıktısı:** tek bir JSON belgesi. Kart envanteri, yeterlilik,
   test esası, çelişkiler, senaryolar ve kapsam burada tutulur. Senaryo
   adımları Türkçe Gherkin cümleleridir.
@@ -23,12 +26,12 @@ serbesttir ve `gherkin-format-rules.md`'deki okunabilirlik kurallarına uyar.
 
 | Dosya | Ne zaman okunur |
 |---|---|
-| `references/card-analysis-rules.md` | Adım 1–2'de: hangi alanın nasıl okunacağı, ekler, kaynak gösterme, çelişki kuralları, R1–R10 |
+| `references/card-analysis-rules.md` | Adım 1–2'de: hangi alanın nasıl okunacağı, XML eşlemesi (§9), ekler, kaynak gösterme, çelişki kuralları, R1–R10 |
 | `references/test-design-rules.md` | Adım 3–5'te: risk, test derinliği, teknik seçimi, teknikler, senaryo yazım kuralları |
 | `references/gherkin-format-rules.md` | Adım 5'te: Gherkin anahtar kelimeleri, cümle yazımı, Örnekler, Geçmiş |
 | `references/output-schema.json` | Adım 6–8'de: çıktının tek geçerli formatı |
 | `scripts/render_gherkin.py` | Adım 8'de: JSON'u doğrular, `.feature` ve yeterlilik raporu üretir |
-| `examples/sample-output.json` | Biçim ve ayrıntı düzeyi örneği. İçeriği kopyalanmaz |
+| `examples/sample-output.json` | Biçim ve ayrıntı düzeyi örneği. İçeriği kopyalanmaz. Örnekte üç ek kullanıcı tarafından dosya olarak (video okunamamıştır), epic de ayrı bir XML olarak paylaşılmıştır; paylaşılmayan ek ve bağlı kart `not_provided` / `not_accessible` olur |
 | `examples/sample-output.feature`, `examples/sample-report.md` | Örnek JSON'dan script ile üretilmiş çıktılar |
 
 ## İş akışı
@@ -36,17 +39,20 @@ serbesttir ve `gherkin-format-rules.md`'deki okunabilirlik kurallarına uyar.
 ### Adım 1: Kart verilerini topla
 
 `card-analysis-rules.md` §2–§5'e göre kartın tüm alanlarını oku ve
-`card_inventory` alanını doldur.
+`card_inventory` alanını doldur. XML öğelerinin hangi alana karşılık geldiği
+§9'dadır.
 
 1. Metin alanları: summary, issue type, açıklama, kabul kriterleri,
    environment, öncelik, etiketler, bileşenler, sürümler, raporlayan, özel
-   alanlar. Boş veya sağlanmamış alanları da kaydet.
-2. Ekler: her eki tek tek aç; çıkardığın bilgiyi ve durumunu yaz. Okuyamadığın
-   eki atlamadan `not_readable` olarak kaydet.
+   alanlar. Boş veya XML'de bulunmayan alanları da kaydet.
+2. Ekler: XML'deki her eki `not_provided` olarak kaydet. Yalnızca kullanıcının
+   isteğe açıkça eklediği ek dosyalarını oku; okuduğunu `processed`,
+   okuyamadığını `not_readable` yap. Ek indirmeye çalışma.
 3. Yorumlar: eskiden yeniye oku; her yoruma `C-NN` kimliği, yazar, tarih ve
    rol ver.
-4. Bağlı kartlar, alt görevler, dış bağlantılar: erişebildiklerini oku,
-   erişemediklerini kaydet.
+4. Bağlı kartlar ve alt görevler: XML'de yalnızca anahtarları vardır;
+   `not_accessible` olarak kaydet. Açıklamadaki dış bağlantıları açma;
+   `not_accessible` olarak kaydet.
 5. `test_environment`: ortam, kanal, sürüm, cihaz/tarayıcı ve kullanıcı tipini
    kaynağıyla yaz.
 
@@ -196,6 +202,9 @@ Yanıt olarak JSON belgesini (ve üretildiyse `.feature` ile raporu) döndür.
     enum değerleri şemadaki gibi İngilizce kalır.
 14. **Örnek kopyalanmaz.** `examples/` altındaki dosyalar yalnızca biçim ve
     ayrıntı düzeyini gösterir.
+15. **Ağ erişimi yok.** Jira'ya veya başka bir adrese bağlanılmaz, oturum
+    açılmaz, kimlik bilgisi istenmez, ek indirilmez. Kart verisinin tek
+    kaynağı paylaşılan XML ve kullanıcının açıkça eklediği dosyalardır.
 
 ## Bug kartları (değişiklikle ilgili test)
 

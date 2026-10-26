@@ -40,11 +40,13 @@ tanımlar. `SKILL.md` iş akışının 1. ve 2. adımlarında kullanılır.
 
 1. **Metin alanları:** summary, açıklama, kabul kriterleri, ortam, sürümler,
    özel alanlar.
-2. **Ekler:** her ek tek tek açılır (§4).
+2. **Ekler:** her ek tek tek kaydedilir (§4). XML yalnızca ek adını taşır;
+   içerik yalnızca kullanıcı dosyayı açıkça eklediyse okunur (§9).
 3. **Yorumlar:** eskiden yeniye okunur. Her yoruma `C-01`, `C-02`… kimliği
    verilir; yazar, tarih ve rol kaydedilir.
-4. **Bağlı kartlar ve alt görevler:** erişilebiliyorsa özet ve kabul
-   kriterleri okunur.
+4. **Bağlı kartlar ve alt görevler:** XML'de yalnızca anahtarları vardır;
+   `not_accessible` olarak kaydedilir. Kullanıcı bağlı kartın XML'ini de
+   paylaştıysa özeti ve kabul kriterleri okunur ve `used` olur.
 5. **Çapraz kontrol:** aynı konu için farklı alanlardaki bilgiler
    karşılaştırılır; çelişkiler `conflicts` içine yazılır (§6).
 
@@ -69,8 +71,9 @@ Kurallar:
    yalnızca o ekte duruyorsa (açıklama "ekteki dokümana bakınız" diyorsa) R10
    `fail` olur.
 4. Açıklamadaki dış bağlantılar (Confluence, tasarım aracı) da
-   `card_inventory.external_links` içine yazılır. Erişilemeyen bağlantı ekle
-   aynı şekilde değerlendirilir.
+   `card_inventory.external_links` içine yazılır. Bağlantılar açılmaz;
+   `not_accessible` olarak kaydedilir ve okunamayan ekle aynı şekilde
+   değerlendirilir.
 5. Eklerdeki örnek veriler gerçek müşteri verisi içerebilir; test verisine
    kopyalanmaz, sentetik karşılığı üretilir.
 
@@ -153,10 +156,73 @@ Bug kartlarında şu bilgiler ayrıca aranır; eksikse ilgili kontrol düşer:
 - Hata mesajı veya kodu (ekran görüntüsü, log) → doğrulama testinin beklenen
   sonucunda kullanılır
 
-## 9. Pipeline'dan beklenen girdi
+## 9. Girdi: Jira XML dışa aktarımı
 
-Agent, kartın tüm alanlarını, yorumlarını, eklerinin içeriğini ve bağlı
-kartların özetini almalıdır. Pipeline yalnızca metin alanlarını iletiyorsa
-eksik kalan alanlar `card_inventory` içinde `not_provided` olarak işaretlenir ve
-R10 `partial` olur. Bu durum yeterlilik raporunda görünür; agent eksik bilgiyi
-tahminle doldurmaz.
+Kart, kullanıcının Jira'dan aldığı XML dışa aktarımıyla (kart → Dışa aktar →
+XML) gelir. Jira'ya bağlanılmaz, oturum açılmaz, ek indirilmez; XML'deki
+`<link>` ve diğer adresler açılmaz. Kart verisinin tek kaynağı XML ve
+kullanıcının isteğe açıkça eklediği dosyalardır.
+
+### 9.1 Öğe eşlemesi
+
+Her kart, `<rss><channel>` altındaki bir `<item>` öğesidir. Birden fazla
+`<item>` varsa her biri ayrı karttır.
+
+| XML öğesi | Alan | Not |
+|---|---|---|
+| `<key>` | `source.jira_key` | |
+| `<summary>` | `summary` | `<title>` içindeki `[KEY]` ön eki kullanılmaz |
+| `<link>` | `source.url` | Yalnızca kaydedilir, açılmaz |
+| `<type>` | `issue_type` | Story / Hikâye → `story`, Task / Görev → `task`, Bug / Hata → `bug`, Sub-task / Alt Görev → `sub_task`, Epic → `epic`, diğerleri → `other` |
+| `<description>` | `description` | HTML olarak kaçışlıdır; bkz. §9.2 |
+| `<environment>` | `environment` | Boşsa `empty` |
+| `<priority>` | `priority`, `source.jira_priority` | |
+| `<labels><label>` | `labels` | |
+| `<component>` (tekrarlanabilir) | `components` | |
+| `<version>` | `affects_versions` | Etkilenen sürüm |
+| `<fixVersion>` | `fix_versions` | |
+| `<reporter>`, `<assignee>` | `reporter`, `assignee` | Öğe metni görünen addır |
+| `<customfields><customfield>` | `custom_fields` | Adı `<customfieldname>`, değeri `<customfieldvalues><customfieldvalue>`. "Acceptance Criteria" / "Kabul Kriterleri" adlı özel alan `acceptance_criteria` alanıdır |
+| `<comments><comment>` | Yorumlar | `author` özniteliği yazar, `created` özniteliği tarih; metin HTML olarak kaçışlıdır |
+| `<attachments><attachment>` | Ekler | Yalnızca `name`, `size`, `author`, `created` öznitelikleri vardır; içerik yoktur |
+| `<issuelinks>` | `linked_issues` | `<issuelinktype><name>` ve `<outwardlinks>` / `<inwardlinks>` `description` özniteliği bağlantı türüdür; `<issuekey>` anahtardır |
+| `<parent>`, "Epic Link" özel alanı | `linked_issues` | Bağlantı türü `parent` veya `epic` |
+| `<subtasks><subtask>` | `subtasks`, `linked_issues` | Yalnızca anahtar vardır. `subtasks` alanı `used` olur ve `note` anahtarları listeler; her alt görev ayrıca bağlantı türü `subtask` ile `linked_issues` içine yazılır |
+| `<status>`, `<resolution>`, `<created>`, `<updated>`, `<votes>`, `<watches>` | — | Test esası değildir; kullanılmaz |
+
+Kabul kriterleri ayrı bir özel alanda değilse açıklamanın içinde aranır
+("Kabul Kriterleri", "Acceptance Criteria" başlığı veya listesi). İkisinde de
+yoksa `acceptance_criteria` alanı `not_provided` olur.
+
+### 9.2 İçeriğin okunması
+
+- `<description>`, yorum ve metin özel alanlarının içeriği HTML'dir ve XML
+  içinde kaçışlıdır (`&lt;p&gt;`) ya da `<![CDATA[...]]>` içindedir. Önce
+  varlıkları çöz (`&lt;` → `<`, `&quot;` → `"`, `&#39;` → `'`), sonra HTML'i
+  yapısıyla oku: `<li>` liste maddesi, `<table>` tablo, `<b>` / `<strong>`
+  başlık veya vurgu.
+- Test esası öğesine metin yazarken HTML etiketlerini kaldır; metnin kendisini
+  değiştirme. Mesaj metinleri ve alan adları birebir kalır.
+- Açıklamadaki `<img>` veya `!dosya.png!` gibi gömülü görseller bir eke işaret
+  eder; o ek görsel içerik olmadan okunamaz.
+- Yorum tarihleri `Tue, 21 Oct 2026 09:12:00 +0300` biçimindedir; envantere
+  `2026-10-21` olarak yazılır.
+- Yorumun `author` özniteliği kullanıcı adı veya hesap kimliği olabilir; rolü
+  yorumun içeriğinden ya da raporlayan / atanan eşleşmesinden belirlenemiyorsa
+  `unknown` olur.
+
+### 9.3 XML'de olmayan bilgi
+
+| Kaynak | Envanterdeki durum | `summary` / `note` |
+|---|---|---|
+| Ek (kullanıcı dosyayı eklemediyse) | `not_provided` | XML'de yalnızca ek adı var; içerik paylaşılmadı |
+| Ek (kullanıcı ekledi, okunamadı) | `not_readable` | Okunamama nedeni |
+| Bağlı kart, alt görev (`linked_issues`) | `not_accessible` | Bağlantı türü; XML'de yalnızca anahtar var. Kullanıcı o kartın XML'ini de paylaştıysa `used` |
+| Açıklamadaki dış bağlantı | `not_accessible` | Bağlantı açılmadı |
+| XML'de hiç bulunmayan alan | `not_provided` | |
+
+Bu kayıtların her biri R10'u `pass` olmaktan çıkarır (§7). Kurallar
+yalnızca içeriği paylaşılmamış bir ekte veya bağlı kartta duruyorsa R10
+`fail` olur ve kart `not_ready` olur. Bu durumda yazılan soru, ekin veya
+bağlı kartın içeriğinin metin ya da dosya olarak paylaşılmasını ister. Eksik
+bilgi tahminle doldurulmaz.
