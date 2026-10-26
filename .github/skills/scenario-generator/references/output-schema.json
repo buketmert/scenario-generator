@@ -1,0 +1,726 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scenario-generator/output-schema.json",
+  "title": "Jira kartından üretilen manuel test senaryoları",
+  "description": "scenario-generator çıktısının tek geçerli formatı. Akış: kart envanteri → yeterlilik → test esası → çelişkiler → test koşulları → kapsam öğeleri → Gherkin senaryoları → kapsam özeti. .feature dosyası ve yeterlilik raporu bu JSON'dan scripts/render_gherkin.py ile üretilir.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "source",
+    "card_inventory",
+    "test_environment",
+    "readiness",
+    "test_basis",
+    "conflicts",
+    "test_conditions",
+    "coverage_items",
+    "feature",
+    "test_scenarios",
+    "coverage_summary",
+    "assumptions",
+    "out_of_scope"
+  ],
+  "properties": {
+    "schema_version": { "const": "2.0.0" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "source": {
+      "description": "Analiz edilen Jira kartı.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jira_key", "issue_type", "summary"],
+      "properties": {
+        "jira_key": { "type": "string", "pattern": "^[A-Z][A-Z0-9]+-[0-9]+$" },
+        "issue_type": { "enum": ["story", "task", "bug", "sub_task", "epic", "other"] },
+        "summary": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" },
+        "components": { "type": "array", "items": { "type": "string" } },
+        "labels": { "type": "array", "items": { "type": "string" } },
+        "jira_priority": { "type": "string" }
+      }
+    },
+    "card_inventory": {
+      "description": "Kartın hangi alanlarına, eklerine, yorumlarına ve bağlantılarına bakıldığı (card-analysis-rules.md §1–§4).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fields", "attachments", "comments", "linked_issues", "external_links"],
+      "properties": {
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["field", "status"],
+            "properties": {
+              "field": {
+                "enum": [
+                  "summary", "issue_type", "description", "acceptance_criteria", "environment",
+                  "priority", "labels", "components", "affects_versions", "fix_versions",
+                  "reporter", "assignee", "subtasks", "custom_fields"
+                ]
+              },
+              "status": { "enum": ["used", "empty", "not_provided", "not_relevant"] },
+              "note": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "type", "status", "summary", "basis_ids"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "type": { "enum": ["image", "pdf", "document", "spreadsheet", "log", "video", "archive", "other"] },
+              "status": { "enum": ["processed", "not_readable", "not_relevant", "not_provided"] },
+              "summary": {
+                "description": "Ekten çıkarılan bilgi veya okunamama nedeni.",
+                "type": "string",
+                "minLength": 1
+              },
+              "basis_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/basisId" } }
+            }
+          }
+        },
+        "comments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "author", "date", "role", "status", "summary", "basis_ids"],
+            "properties": {
+              "id": { "$ref": "#/$defs/commentId" },
+              "author": { "type": "string", "minLength": 1 },
+              "date": { "type": "string", "format": "date" },
+              "role": { "enum": ["product_owner", "business_analyst", "developer", "tester", "other", "unknown"] },
+              "status": { "enum": ["used", "superseded", "not_relevant"] },
+              "summary": { "type": "string", "minLength": 1 },
+              "basis_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/basisId" } }
+            }
+          }
+        },
+        "linked_issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "link_type", "status", "note"],
+            "properties": {
+              "key": { "type": "string", "pattern": "^[A-Z][A-Z0-9]+-[0-9]+$" },
+              "link_type": { "type": "string", "minLength": 1 },
+              "status": { "enum": ["used", "not_accessible", "not_relevant"] },
+              "note": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "external_links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "status", "note"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "status": { "enum": ["accessed", "not_accessible", "not_relevant"] },
+              "note": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "test_environment": {
+      "description": "Senaryoların koşulacağı ortam. Dosya başında yorum olarak yazılır.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "details"],
+      "properties": {
+        "summary": { "type": "string", "minLength": 1 },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["aspect", "value", "source"],
+            "properties": {
+              "aspect": {
+                "enum": ["ortam", "kanal", "surum", "platform", "cihaz", "isletim_sistemi", "tarayici", "kullanici_tipi", "diger"]
+              },
+              "value": { "type": "string", "minLength": 1 },
+              "source": { "$ref": "#/$defs/sourceRef" }
+            }
+          }
+        }
+      }
+    },
+    "readiness": {
+      "description": "Kartın test senaryosu üretmeye yeterli olup olmadığı (card-analysis-rules.md §7).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "summary", "checks", "clarification_questions"],
+      "properties": {
+        "status": { "enum": ["ready", "partial", "not_ready"] },
+        "summary": { "type": "string", "minLength": 1 },
+        "checks": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "items": { "$ref": "#/$defs/readinessCheck" }
+        },
+        "clarification_questions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/question" }
+        }
+      }
+    },
+    "test_basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/basisItem" }
+        }
+      }
+    },
+    "conflicts": {
+      "description": "Alanlar arası çelişkiler (card-analysis-rules.md §6). Hiçbiri sessizce çözülmez.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/conflict" }
+    },
+    "test_conditions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/testCondition" }
+    },
+    "coverage_items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/coverageItem" }
+    },
+    "feature": {
+      "description": "Gherkin 'Özellik:' bloğu.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "tags"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "tags": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/tag" } },
+        "background": {
+          "description": "Tüm senaryolarda ortak ön koşullar ('Geçmiş:'). Yalnızca given ve and adımları.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/step" }
+        }
+      }
+    },
+    "test_scenarios": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/testScenario" }
+    },
+    "coverage_summary": { "$ref": "#/$defs/coverageSummary" },
+    "assumptions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/assumption" }
+    },
+    "out_of_scope": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["item", "reason"],
+        "properties": {
+          "item": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 },
+          "source": { "$ref": "#/$defs/sourceRef" }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "description": "not_ready: senaryo üretilmez, en az bir soru olur.",
+      "if": {
+        "properties": { "readiness": { "properties": { "status": { "const": "not_ready" } } } }
+      },
+      "then": {
+        "properties": {
+          "test_scenarios": { "maxItems": 0 },
+          "readiness": { "properties": { "clarification_questions": { "minItems": 1 } } }
+        }
+      }
+    },
+    {
+      "description": "partial: en az bir senaryo ve en az bir soru olur.",
+      "if": {
+        "properties": { "readiness": { "properties": { "status": { "const": "partial" } } } }
+      },
+      "then": {
+        "properties": {
+          "test_scenarios": { "minItems": 1 },
+          "readiness": { "properties": { "clarification_questions": { "minItems": 1 } } }
+        }
+      }
+    },
+    {
+      "description": "ready: en az bir senaryo olur.",
+      "if": {
+        "properties": { "readiness": { "properties": { "status": { "const": "ready" } } } }
+      },
+      "then": {
+        "properties": { "test_scenarios": { "minItems": 1 } }
+      }
+    }
+  ],
+  "$defs": {
+    "basisId": { "type": "string", "pattern": "^(AC|BR|UI|CN)-[0-9]{2,}$" },
+    "requirementId": { "type": "string", "pattern": "^(AC|BR)-[0-9]{2,}$" },
+    "commentId": { "type": "string", "pattern": "^C-[0-9]{2,}$" },
+    "conflictId": { "type": "string", "pattern": "^CF-[0-9]{2,}$" },
+    "conditionId": { "type": "string", "pattern": "^COND-[0-9]{2,}$" },
+    "coverageItemId": {
+      "type": "string",
+      "pattern": "^(EP|BVA|DT|ST|EG|CL)-[A-Z0-9][A-Z0-9._-]*$"
+    },
+    "scenarioId": { "type": "string", "pattern": "^TS-[A-Z][A-Z0-9]+-[0-9]+-[0-9]{3}$" },
+    "questionId": { "type": "string", "pattern": "^Q-[0-9]{2,}$" },
+    "assumptionId": { "type": "string", "pattern": "^A-[0-9]{2,}$" },
+    "checkId": { "enum": ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"] },
+    "tag": { "type": "string", "pattern": "^@[^\\s@]+$" },
+    "paramName": { "type": "string", "pattern": "^[a-zçğıöşü][a-zçğıöşü0-9_]*$" },
+    "technique": {
+      "enum": [
+        "acceptance_criteria_based",
+        "equivalence_partitioning",
+        "boundary_value_analysis",
+        "decision_table",
+        "state_transition",
+        "error_guessing",
+        "checklist_based"
+      ]
+    },
+    "riskLevel": { "enum": ["low", "medium", "high", "critical"] },
+    "sourceRef": {
+      "description": "Bilginin karttaki kaynağı. Ek, yorum, bağlı kart, alt görev ve özel alan için ref zorunlu.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field"],
+      "properties": {
+        "field": {
+          "enum": [
+            "summary", "description", "acceptance_criteria", "environment", "comment", "attachment",
+            "linked_issue", "subtask", "custom_field", "labels", "components", "priority",
+            "fix_versions", "affects_versions", "reporter"
+          ]
+        },
+        "ref": { "type": "string", "minLength": 1 }
+      },
+      "if": {
+        "properties": { "field": { "enum": ["comment", "attachment", "linked_issue", "subtask", "custom_field"] } }
+      },
+      "then": { "required": ["ref"] }
+    },
+    "readinessCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "criterion", "result", "finding"],
+      "properties": {
+        "id": { "$ref": "#/$defs/checkId" },
+        "criterion": { "type": "string", "minLength": 1 },
+        "result": { "enum": ["pass", "partial", "fail"] },
+        "finding": { "type": "string", "minLength": 1 }
+      }
+    },
+    "question": {
+      "description": "Kart sahibine sorulacak netleştirme sorusu.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "question", "related_check_ids", "blocking"],
+      "properties": {
+        "id": { "$ref": "#/$defs/questionId" },
+        "question": { "type": "string", "minLength": 1 },
+        "related_check_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/checkId" }
+        },
+        "related_basis_ids": { "type": "array", "items": { "$ref": "#/$defs/basisId" } },
+        "related_conflict_ids": { "type": "array", "items": { "$ref": "#/$defs/conflictId" } },
+        "blocking": {
+          "description": "true: yanıt gelmeden ilgili kapsam öğesi test edilemez.",
+          "type": "boolean"
+        },
+        "addressed_to": {
+          "enum": ["product_owner", "business_analyst", "developer", "designer", "other"]
+        }
+      }
+    },
+    "basisItem": {
+      "description": "Test esası öğesi: AC kabul kriteri, BR iş kuralı, UI tasarım ayrıntısı, CN teknik kısıt.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "text", "source"],
+      "properties": {
+        "id": { "$ref": "#/$defs/basisId" },
+        "kind": { "enum": ["acceptance_criterion", "business_rule", "ui_detail", "constraint"] },
+        "text": {
+          "description": "Kaynaktaki metin, değiştirilmeden.",
+          "type": "string",
+          "minLength": 1
+        },
+        "source": { "$ref": "#/$defs/sourceRef" },
+        "format": { "enum": ["given_when_then", "rule", "free_text"] },
+        "testability": { "enum": ["testable", "partially_testable", "not_testable"] },
+        "issue": { "type": "string", "minLength": 1 },
+        "updates": {
+          "description": "Bu öğenin güncellediği veya genişlettiği öğeler (daha yeni bir karar).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/basisId" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "enum": ["acceptance_criterion", "business_rule"] } } },
+          "then": { "required": ["format", "testability"] }
+        },
+        {
+          "if": {
+            "required": ["testability"],
+            "properties": { "testability": { "enum": ["partially_testable", "not_testable"] } }
+          },
+          "then": { "required": ["issue"] }
+        }
+      ]
+    },
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description", "basis_ids", "status"],
+      "properties": {
+        "id": { "$ref": "#/$defs/conflictId" },
+        "description": { "type": "string", "minLength": 1 },
+        "basis_ids": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/basisId" }
+        },
+        "status": { "enum": ["resolved_by_later_decision", "unresolved"] },
+        "resolved_by": { "$ref": "#/$defs/basisId" },
+        "question_id": { "$ref": "#/$defs/questionId" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "unresolved" } } },
+          "then": { "required": ["question_id"] }
+        },
+        {
+          "if": { "properties": { "status": { "const": "resolved_by_later_decision" } } },
+          "then": { "required": ["resolved_by"] }
+        }
+      ]
+    },
+    "testCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description", "basis_ids", "risk", "techniques"],
+      "properties": {
+        "id": { "$ref": "#/$defs/conditionId" },
+        "description": { "type": "string", "minLength": 1 },
+        "basis_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/basisId" }
+        },
+        "risk": {
+          "description": "level = likelihood × impact: 9 critical, 6 high, 3–4 medium, 1–2 low.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["likelihood", "impact", "level", "rationale"],
+          "properties": {
+            "likelihood": { "type": "integer", "minimum": 1, "maximum": 3 },
+            "impact": { "type": "integer", "minimum": 1, "maximum": 3 },
+            "level": { "$ref": "#/$defs/riskLevel" },
+            "rationale": { "type": "string", "minLength": 1 }
+          }
+        },
+        "techniques": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/technique" }
+        }
+      }
+    },
+    "coverageItem": {
+      "description": "Teknikle türetilen, test edilmesi gereken öğe: sınıf, sınır değer, karar tablosu kuralı, geçiş, hata tahmini.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "technique", "test_condition_ids", "description"],
+      "properties": {
+        "id": { "$ref": "#/$defs/coverageItemId" },
+        "technique": {
+          "enum": [
+            "equivalence_partitioning",
+            "boundary_value_analysis",
+            "decision_table",
+            "state_transition",
+            "error_guessing",
+            "checklist_based"
+          ]
+        },
+        "test_condition_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/conditionId" }
+        },
+        "description": { "type": "string", "minLength": 1 },
+        "partition": { "enum": ["valid", "invalid"] },
+        "value": { "type": ["string", "number"] }
+      }
+    },
+    "step": {
+      "description": "Bir Gherkin adımı. Metin serbesttir; <parametre> veri setinden doldurulur.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["keyword", "text"],
+      "properties": {
+        "keyword": { "enum": ["given", "when", "then", "and", "but"] },
+        "text": { "type": "string", "minLength": 1 }
+      }
+    },
+    "testScenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "objective",
+        "status",
+        "scenario_type",
+        "test_level",
+        "test_type",
+        "techniques",
+        "priority",
+        "traceability",
+        "steps",
+        "test_data"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/scenarioId" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "objective": { "type": "string", "minLength": 1 },
+        "status": {
+          "description": "needs_clarification: senaryo bir varsayıma veya yanıtlanmamış bloklayıcı soruya dayanıyor; @taslak etiketiyle üretilir.",
+          "enum": ["ready", "needs_clarification"]
+        },
+        "scenario_type": { "enum": ["positive", "negative"] },
+        "test_level": {
+          "enum": ["component", "component_integration", "system", "system_integration", "acceptance"]
+        },
+        "test_type": { "enum": ["functional", "non_functional"] },
+        "quality_characteristic": {
+          "description": "ISO/IEC 25010. Yalnızca non_functional senaryolarda.",
+          "enum": [
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "security",
+            "maintainability",
+            "portability"
+          ]
+        },
+        "techniques": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/technique" }
+        },
+        "priority": {
+          "description": "Bağlı test koşullarının en yüksek risk seviyesi.",
+          "$ref": "#/$defs/riskLevel"
+        },
+        "traceability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["basis_ids", "test_condition_ids", "coverage_item_ids"],
+          "properties": {
+            "basis_ids": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/basisId" }
+            },
+            "test_condition_ids": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/conditionId" }
+            },
+            "coverage_item_ids": {
+              "description": "Yalnızca kabul kriterine dayalı senaryolarda boş olabilir.",
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/coverageItemId" }
+            }
+          }
+        },
+        "steps": {
+          "description": "Geçmiş (background) adımlarından sonraki adımlar.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step" }
+        },
+        "test_data": { "$ref": "#/$defs/testData" },
+        "tags": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/tag" } },
+        "notes": {
+          "description": "Test uzmanı için not; yorum satırı olarak yazılır.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "assumption_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/assumptionId" }
+        },
+        "open_question_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/questionId" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "test_type": { "const": "non_functional" } } },
+          "then": { "required": ["quality_characteristic"] },
+          "else": { "not": { "required": ["quality_characteristic"] } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "needs_clarification" } } },
+          "then": {
+            "required": ["open_question_ids"],
+            "properties": { "open_question_ids": { "minItems": 1 } }
+          }
+        }
+      ]
+    },
+    "testData": {
+      "description": "Adımlarda <parametre> olarak anılır. Tek veri seti: değerler adımlara yazılır (Senaryo). Birden fazla: Senaryo Taslağı + Örnekler.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parameters", "data_sets"],
+      "properties": {
+        "parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "description"],
+            "properties": {
+              "name": { "$ref": "#/$defs/paramName" },
+              "description": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "data_sets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label", "values"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^DS-[0-9]{2,}$" },
+              "label": { "type": "string", "minLength": 1 },
+              "values": {
+                "type": "object",
+                "propertyNames": { "$ref": "#/$defs/paramName" },
+                "additionalProperties": { "type": ["string", "number", "boolean", "null"] }
+              }
+            }
+          }
+        }
+      },
+      "if": { "properties": { "parameters": { "minItems": 1 } } },
+      "then": { "properties": { "data_sets": { "minItems": 1 } } }
+    },
+    "coverageSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["basis", "techniques", "uncovered_items", "scenario_counts"],
+      "properties": {
+        "basis": {
+          "description": "Kapsanması zorunlu her test esası öğesi (AC ve BR).",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["basis_id", "scenario_ids", "status"],
+            "properties": {
+              "basis_id": { "$ref": "#/$defs/requirementId" },
+              "scenario_ids": { "type": "array", "items": { "$ref": "#/$defs/scenarioId" } },
+              "status": {
+                "description": "partially_covered: bir tarafı eksik veya taslak senaryoya dayanıyor.",
+                "enum": ["covered", "partially_covered", "not_covered"]
+              },
+              "note": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "techniques": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["technique", "total_items", "covered_items", "coverage_percent"],
+            "properties": {
+              "technique": { "$ref": "#/$defs/technique" },
+              "total_items": { "type": "integer", "minimum": 0 },
+              "covered_items": { "type": "integer", "minimum": 0 },
+              "coverage_percent": { "type": "number", "minimum": 0, "maximum": 100 }
+            }
+          }
+        },
+        "uncovered_items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["coverage_item_id", "reason"],
+            "properties": {
+              "coverage_item_id": { "$ref": "#/$defs/coverageItemId" },
+              "reason": { "type": "string", "minLength": 1 },
+              "question_id": { "$ref": "#/$defs/questionId" }
+            }
+          }
+        },
+        "scenario_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["total", "positive", "negative", "ready", "needs_clarification"],
+          "properties": {
+            "total": { "type": "integer", "minimum": 0 },
+            "positive": { "type": "integer", "minimum": 0 },
+            "negative": { "type": "integer", "minimum": 0 },
+            "ready": { "type": "integer", "minimum": 0 },
+            "needs_clarification": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "assumption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "question_id"],
+      "properties": {
+        "id": { "$ref": "#/$defs/assumptionId" },
+        "statement": { "type": "string", "minLength": 1 },
+        "question_id": { "$ref": "#/$defs/questionId" }
+      }
+    }
+  }
+}
