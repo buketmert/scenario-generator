@@ -14,9 +14,9 @@ senaryoları** üretir. Senaryonun nasıl kurulduğu
 
 **Giriş:** VS Code sohbetinde `/senaryo-uret <XML dosyasının yolu>`
 (`.github/prompts/senaryo-uret.prompt.md`). Komut `Senaryo Üretici`
-agent'ını kendisi seçer; agent seçmek gerekmez. Soru sormadan üretmek için
-`/hizli-senaryo-uret`. XML'i sohbete ek olarak eklemek yerine çalışma alanına
-kaydedip yolunu yazmak daha hızlıdır: ek, ham XML'i bağlama koyar.
+agent'ını kendisi seçer; agent seçmek gerekmez. XML'i sohbete ek olarak
+eklemek yerine çalışma alanına kaydedip yolunu yazmak daha hızlıdır: ek,
+ham XML'i bağlama koyar.
 
 Adımlar arada onay istenmeden uygulanır. Mekanik işi script'ler yapar; LLM
 yalnızca muhakeme gerektiren kısmı (yeterlilik, akışlar, senaryolar) yazar.
@@ -70,7 +70,7 @@ serbesttir ve `gherkin-format-rules.md`'deki okunabilirlik kurallarına uyar.
 | `references/output-schema.json` | Okunmaz; script doğrulamada kullanır |
 | `scripts/render_gherkin.py` | Adım 8'de çalıştırılır: JSON'u tamamlar ve doğrular; `.feature`, rapor, seçim listesi ve durağan seçim ekranı (`scripts/selection_page.py`) üretir |
 | `scripts/secim_sunucu.py` | Adım 8'de `render_gherkin.py --sunucu` başlatır: seçim ekranını "Jira'da aç" düğmesiyle sunar |
-| `.github/prompts/senaryo-uret.prompt.md`, `hizli-senaryo-uret.prompt.md` | Giriş komutları: `/senaryo-uret`, `/hizli-senaryo-uret`; doğru agent'ı seçer |
+| `.github/prompts/senaryo-uret.prompt.md` | Giriş komutu: `/senaryo-uret`; doğru agent'ı seçer |
 | `scripts/jira_create.py` | Kartları açar (ekrandaki düğme onu çağırır); `--kesfet` ile Jira'yı tanıyıp ayar önerir |
 | `examples/jira-ayar.ornek.json` | Jira ayar dosyası örneği (`test-scenarios/jira-ayar.json`) |
 | `examples/ESUBE-2041.xml` → `examples/ESUBE-2041/` | Uçtan uca örnek: girdi XML ve agent'ın ürettiği her dosya (yalın JSON, kart dosyaları, `.feature`, rapor, seçim listesi ve ekranı). Q-01 çoktan seçmeli yanıtlanmıştır. İçeriği kopyalanmaz |
