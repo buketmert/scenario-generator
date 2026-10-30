@@ -1,6 +1,6 @@
 ---
 name: Senaryo Üretici
-description: "Test senaryosu oluştur / senaryo üret" denince kullanıcının verdiği Jira XML dışa aktarımından uçtan uca manuel test senaryoları üretir (Türkçe Gherkin); kartın ana, alternatif ve hata akışlarının her biri girişten sonuca bir senaryodur. Bu agent tek akışlıdır; ayrı bir "hızlı" sekmesi veya ayrı giriş komutu yoktur. Belirsizlikleri çoktan seçmeli sorar. Senaryoları bir seçim ekranında açar; kullanıcı işaretlediklerini "Jira'da aç" ile Test Senaryosu kartı yapar. Agent Jira'ya bağlanmaz, ek indirmez.
+description: "\"Test senaryosu oluştur / senaryo üret\" denince kullanıcının verdiği Jira XML dışa aktarımından uçtan uca manuel test senaryoları üretir (Türkçe Gherkin); kartın ana, alternatif ve hata akışlarının her biri girişten sonuca bir senaryodur. Belirsizlikleri çoktan seçmeli sorar. Senaryoları bir seçim ekranında açar; kullanıcı işaretlediklerini \"Jira'da aç\" ile Test Senaryosu kartı yapar. Agent Jira'ya bağlanmaz, ek indirmez."
 argument-hint: Jira kartının XML dosyasının yolu (ör. test-scenarios/girdi/ESUBE-2041.xml)
 tools:
   - read
