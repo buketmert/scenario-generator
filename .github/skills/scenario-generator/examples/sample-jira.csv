@@ -1,10 +1,24 @@
-"Summary","Issue Type","Priority","Kaynak Kart","Description","Labels","Labels","Labels","Labels"
-"[TS-ESUBE-2041-001] Geçerli bilgilerle gönderilen EFT başarıyla tamamlanır ve dekont numarası gösterilir","Test","High","ESUBE-2041","*Amaç:* Zorunlu alanları geçerli değerlerle doldurulmuş EFT'nin tamamlandığını, başarı mesajının ve dekont numarasının gösterildiğini doğrulamak.
+"Summary","Issue Type","Priority","Kaynak Kart","Akış","Ön Koşullar","Test Adımları","Beklenen Sonuç","Test Verisi","Description","Labels","Labels","Labels","Labels","Labels","Labels"
+"[TS-ESUBE-2041-001] Geçerli bilgilerle gönderilen EFT tamamlanır ve dekont numarası gösterilir","Test Senaryosu","High","ESUBE-2041","ana akış","1. Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım
+2. Ve Para Transferleri menüsünden EFT ekranını açmışım
+3. Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
+4. Diyelim ki gönderici hesabımda en az ""<tutar>"" TL kullanılabilir bakiye var","1. Eğer ki Alıcı IBAN alanına ""<iban>"" yazarsam
+2. Ve Alıcı Adı Soyadı alanına ""<ad_soyad>"" yazarsam
+3. Ve Tutar alanına ""<tutar>"" yazarsam
+4. Ve Gönder butonuna basarsam
+5. O zaman ""İşleminiz başarıyla gerçekleştirilmiştir"" mesajını görürüm
+6. Ve ekranda işlemin dekont numarasını görürüm","1. O zaman ""İşleminiz başarıyla gerçekleştirilmiştir"" mesajını görürüm
+2. Ve ekranda işlemin dekont numarasını görürüm","||durum||iban||ad_soyad||tutar||
+|Tipik tutar: 1.000,00|TR330006100519786457841326|Test Alıcı|1.000,00|
+|Alt sınır: 1,00|TR330006100519786457841326|Test Alıcı|1,00|
+|Alt sınırın hemen üstü: 1,01|TR330006100519786457841326|Test Alıcı|1,01|
+|Üst sınırın hemen altı: 49.999,99|TR330006100519786457841326|Test Alıcı|49.999,99|
+|Üst sınır: 50.000,00|TR330006100519786457841326|Test Alıcı|50.000,00|","*Amaç:* Ana akışı uçtan uca doğrulamak: geçerli alıcı bilgileri ve limit içindeki tutarlarla (tipik değer ve sınırlar) EFT'nin tamamlandığını, başarı mesajının ve dekont numarasının gösterildiğini görmek.
+*Akış (ana akış):* E-Şube'ye bireysel müşteri girişi → Para Transferleri > EFT → Gönderici Hesap seçimi → Alıcı IBAN, Alıcı Adı Soyadı ve Tutar girişi → Gönder → başarı mesajı ve dekont numarası
 *Kaynak kart:* ESUBE-2041
-*Öncelik (risk):* yüksek | *Tür:* pozitif | *Teknik:* kabul kriterine dayalı, denklik paylarına ayırma, sınır değer analizi
-*İzlenebilirlik:* AC-01, BR-02, AC-02, AC-03, BR-01, AC-04, UI-01 | COND-01, COND-02, COND-03, COND-04 | EP-REQ-V, EP-IBAN-V, BVA-IBAN-26, EP-AMT-V
+*Öncelik (risk):* yüksek | *Tür:* pozitif | *Teknik:* uçtan uca akış, kabul kriterine dayalı, denklik paylarına ayırma, sınır değer analizi
+*İzlenebilirlik:* AC-01, BR-02, AC-02, AC-03, BR-01, AC-04, UI-01 | COND-01, COND-02, COND-03, COND-04 | UC-ANA, EP-REQ-V, EP-IBAN-V, BVA-IBAN-26, EP-AMT-V, BVA-AMT-1.00, BVA-AMT-1.01, BVA-AMT-49999.99, BVA-AMT-50000.00
 *Test ortamı:* TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri
-*Veri:* Geçerli IBAN (TR, 26 karakter), tutar 1.000,00
 
 {noformat}
 # language: tr
@@ -16,22 +30,43 @@
     Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
 
   @TS-ESUBE-2041-001 @pozitif @smoke
-  Senaryo: Geçerli bilgilerle gönderilen EFT başarıyla tamamlanır ve dekont numarası gösterilir
-    Diyelim ki gönderici hesabımda en az ""1.000,00"" TL kullanılabilir bakiye var
-    Eğer ki Alıcı IBAN alanına ""TR330006100519786457841326"" yazarsam
-    Ve Alıcı Adı Soyadı alanına ""Test Alıcı"" yazarsam
-    Ve Tutar alanına ""1.000,00"" yazarsam
+  Senaryo Taslağı: Geçerli bilgilerle gönderilen EFT tamamlanır ve dekont numarası gösterilir
+    Diyelim ki gönderici hesabımda en az ""<tutar>"" TL kullanılabilir bakiye var
+    Eğer ki Alıcı IBAN alanına ""<iban>"" yazarsam
+    Ve Alıcı Adı Soyadı alanına ""<ad_soyad>"" yazarsam
+    Ve Tutar alanına ""<tutar>"" yazarsam
     Ve Gönder butonuna basarsam
     O zaman ""İşleminiz başarıyla gerçekleştirilmiştir"" mesajını görürüm
     Ve ekranda işlemin dekont numarasını görürüm
+
+    Örnekler:
+      | durum                             | iban                       | ad_soyad   | tutar     |
+      | Tipik tutar: 1.000,00             | TR330006100519786457841326 | Test Alıcı | 1.000,00  |
+      | Alt sınır: 1,00                   | TR330006100519786457841326 | Test Alıcı | 1,00      |
+      | Alt sınırın hemen üstü: 1,01      | TR330006100519786457841326 | Test Alıcı | 1,01      |
+      | Üst sınırın hemen altı: 49.999,99 | TR330006100519786457841326 | Test Alıcı | 49.999,99 |
+      | Üst sınır: 50.000,00              | TR330006100519786457841326 | Test Alıcı | 50.000,00 |
 {noformat}
 
 *Son koşullar:*
-* Gönderici test hesabından gerçek bir EFT işlemi oluşur. Senaryo tekrar koşulmadan önce bakiyenin ön koşuldaki tutarı karşıladığı kontrol edilmelidir.","para-transferleri","eft","smoke","pozitif"
-"[TS-ESUBE-2041-002] Tutar limitlerde veya limitlerin hemen içinde olduğunda EFT başarıyla tamamlanır","Test","High","ESUBE-2041","*Amaç:* Bireysel müşteri limitlerinin alt ve üst sınırlarında ve hemen içindeki değerlerde EFT'nin kabul edildiğini doğrulamak (yüksek risk: 3 değerli sınır analizi).
+* Her veri satırı gönderici test hesabından ayrı bir EFT işlemi oluşturur; satırlar art arda koşulacaksa toplam tutar kadar bakiye hazırlanmalıdır.","para-transferleri","eft","smoke","ana-akis","pozitif","ESUBE-2041"
+"[TS-ESUBE-2041-002] Gönder butonuna art arda iki kez basıldığında tek EFT işlemi oluşur","Test Senaryosu","High","ESUBE-2041","alternatif akış","1. Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım
+2. Ve Para Transferleri menüsünden EFT ekranını açmışım
+3. Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
+4. Diyelim ki gönderici hesabımda en az ""1.000,00"" TL kullanılabilir bakiye var","1. Eğer ki Alıcı IBAN alanına ""TR330006100519786457841326"" yazarsam
+2. Ve Alıcı Adı Soyadı alanına ""Test Alıcı"" yazarsam
+3. Ve Tutar alanına ""1.000,00"" yazarsam
+4. Ve Gönder butonuna aralarında bekleme olmadan iki kez basarsam
+5. O zaman ""İşleminiz başarıyla gerçekleştirilmiştir"" mesajını bir kez görürüm
+6. Ve ekranda tek bir dekont numarası görürüm","1. O zaman ""İşleminiz başarıyla gerçekleştirilmiştir"" mesajını bir kez görürüm
+2. Ve ekranda tek bir dekont numarası görürüm","Geçerli bilgiler, tutar 1.000,00
+* iban: TR330006100519786457841326
+* ad_soyad: Test Alıcı
+* tutar: 1.000,00","*Amaç:* Ana akışın tekrar gönderimle izlendiği alternatif akışta mükerrer EFT oluşmadığını doğrulamak (hata tahmini).
+*Akış (alternatif akış):* Ana akış; Gönder butonuna art arda iki kez basılır → tek başarı mesajı ve tek dekont numarası
 *Kaynak kart:* ESUBE-2041
-*Öncelik (risk):* yüksek | *Tür:* pozitif | *Teknik:* sınır değer analizi
-*İzlenebilirlik:* AC-03, BR-01, AC-04 | COND-03, COND-04 | BVA-AMT-1.00, BVA-AMT-1.01, BVA-AMT-49999.99, BVA-AMT-50000.00
+*Öncelik (risk):* yüksek | *Tür:* negatif | *Teknik:* uçtan uca akış, hata tahmini
+*İzlenebilirlik:* AC-04 | COND-04 | UC-ALT-CIFTGONDER, EG-01
 *Test ortamı:* TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri
 
 {noformat}
@@ -43,29 +78,38 @@
     Ve Para Transferleri menüsünden EFT ekranını açmışım
     Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
 
-  @TS-ESUBE-2041-002 @pozitif
-  Senaryo Taslağı: Tutar limitlerde veya limitlerin hemen içinde olduğunda EFT başarıyla tamamlanır
-    Diyelim ki gönderici hesabımda en az ""<tutar>"" TL kullanılabilir bakiye var
-    Eğer ki Alıcı IBAN alanına ""<iban>"" yazarsam
-    Ve Alıcı Adı Soyadı alanına ""<ad_soyad>"" yazarsam
-    Ve Tutar alanına ""<tutar>"" yazarsam
-    Ve Gönder butonuna basarsam
-    O zaman ""İşleminiz başarıyla gerçekleştirilmiştir"" mesajını görürüm
-
-    Örnekler:
-      | durum                             | iban                       | ad_soyad   | tutar     |
-      | Alt sınır: 1,00                   | TR330006100519786457841326 | Test Alıcı | 1,00      |
-      | Alt sınırın hemen üstü: 1,01      | TR330006100519786457841326 | Test Alıcı | 1,01      |
-      | Üst sınırın hemen altı: 49.999,99 | TR330006100519786457841326 | Test Alıcı | 49.999,99 |
-      | Üst sınır: 50.000,00              | TR330006100519786457841326 | Test Alıcı | 50.000,00 |
+  @TS-ESUBE-2041-002 @negatif
+  Senaryo: Gönder butonuna art arda iki kez basıldığında tek EFT işlemi oluşur
+    Diyelim ki gönderici hesabımda en az ""1.000,00"" TL kullanılabilir bakiye var
+    Eğer ki Alıcı IBAN alanına ""TR330006100519786457841326"" yazarsam
+    Ve Alıcı Adı Soyadı alanına ""Test Alıcı"" yazarsam
+    Ve Tutar alanına ""1.000,00"" yazarsam
+    Ve Gönder butonuna aralarında bekleme olmadan iki kez basarsam
+    O zaman ""İşleminiz başarıyla gerçekleştirilmiştir"" mesajını bir kez görürüm
+    Ve ekranda tek bir dekont numarası görürüm
 {noformat}
 
 *Son koşullar:*
-* Her veri seti gönderici test hesabından ayrı bir EFT işlemi oluşturur; dört veri setinin toplamı için bakiye hazırlanmalıdır.","para-transferleri","eft","pozitif",""
-"[TS-ESUBE-2041-003] Tutar limit dışında olduğunda EFT başlatılmaz ve limit uyarısı gösterilir","Test","High","ESUBE-2041","*Amaç:* Limitlerin hemen dışındaki tutarların reddedildiğini ve işlemin başlatılmadığını doğrulamak.
+* Gönderici test hesabından EFT işlemi oluşur. Senaryo tekrar koşulmadan önce bakiyenin ön koşuldaki tutarı karşıladığı kontrol edilmelidir.
+
+*Notlar:*
+* Beklenen sonuç AC-04'e dayanır: tek gönderim için tek başarı mesajı ve tek dekont numarası.","para-transferleri","eft","alternatif-akis","negatif","ESUBE-2041",""
+"[TS-ESUBE-2041-003] Tutar limit dışında olduğunda EFT başlatılmaz ve limit uyarısı gösterilir","Test Senaryosu","High","ESUBE-2041","hata akışı","1. Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım
+2. Ve Para Transferleri menüsünden EFT ekranını açmışım
+3. Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
+4. Diyelim ki gönderici hesabımda en az ""<tutar>"" TL kullanılabilir bakiye var","1. Eğer ki Alıcı IBAN alanına ""<iban>"" yazarsam
+2. Ve Alıcı Adı Soyadı alanına ""<ad_soyad>"" yazarsam
+3. Ve Tutar alanına ""<tutar>"" yazarsam
+4. Ve Gönder butonuna basarsam
+5. O zaman ""Tutar 1,00 TL ile 50.000,00 TL arasında olmalıdır"" mesajını görürüm
+6. Fakat işlem başlatılmaz","1. O zaman ""Tutar 1,00 TL ile 50.000,00 TL arasında olmalıdır"" mesajını görürüm
+2. Fakat işlem başlatılmaz","||durum||iban||ad_soyad||tutar||
+|Alt sınırın altı: 0,99|TR330006100519786457841326|Test Alıcı|0,99|
+|Üst sınırın üstü: 50.000,01|TR330006100519786457841326|Test Alıcı|50.000,01|","*Amaç:* Limit dışı tutarla izlenen hata akışında uyarının gösterildiğini ve EFT'nin başlatılmadığını doğrulamak.
+*Akış (hata akışı):* Ana akış; Tutar limit dışında → ""Tutar 1,00 TL ile 50.000,00 TL arasında olmalıdır"" mesajı, EFT başlatılmaz
 *Kaynak kart:* ESUBE-2041
-*Öncelik (risk):* yüksek | *Tür:* negatif | *Teknik:* sınır değer analizi, denklik paylarına ayırma
-*İzlenebilirlik:* AC-03, BR-01, UI-02 | COND-03 | BVA-AMT-0.99, BVA-AMT-50000.01, EP-AMT-I1, EP-AMT-I2
+*Öncelik (risk):* yüksek | *Tür:* negatif | *Teknik:* uçtan uca akış, sınır değer analizi, denklik paylarına ayırma
+*İzlenebilirlik:* AC-03, BR-01, UI-02 | COND-03 | UC-HATA-LIMIT, BVA-AMT-0.99, BVA-AMT-50000.01, EP-AMT-I1, EP-AMT-I2
 *Test ortamı:* TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri
 
 {noformat}
@@ -94,11 +138,23 @@
 {noformat}
 
 *Notlar:*
-* Bakiye ön koşulu, yetersiz bakiye kontrolünün limit kontrolünü maskelememesi için tutar kadar olmalıdır.","para-transferleri","eft","negatif",""
-"[TS-ESUBE-2041-005] IBAN TR ile başlamadığında veya 26 karakterden kısa olduğunda EFT başlatılmaz","Test","High","ESUBE-2041","*Amaç:* TR ile başlamayan ve 25 karakterlik IBAN'ın reddedildiğini doğrulamak. Her satırda tek bir geçersiz özellik var.
+* Bakiye ön koşulu, yetersiz bakiye kontrolünün limit kontrolünü maskelememesi için tutar kadar olmalıdır.","para-transferleri","eft","hata-akisi","negatif","ESUBE-2041",""
+"[TS-ESUBE-2041-005] IBAN TR ile başlamadığında veya 26 karakterden kısa olduğunda EFT başlatılmaz","Test Senaryosu","High","ESUBE-2041","hata akışı","1. Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım
+2. Ve Para Transferleri menüsünden EFT ekranını açmışım
+3. Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
+4. Diyelim ki gönderici hesabımda en az ""<tutar>"" TL kullanılabilir bakiye var","1. Eğer ki Alıcı IBAN alanına ""<iban>"" yazarsam
+2. Ve Alıcı Adı Soyadı alanına ""<ad_soyad>"" yazarsam
+3. Ve Tutar alanına ""<tutar>"" yazarsam
+4. Ve Gönder butonuna basarsam
+5. O zaman ""Geçersiz IBAN"" mesajını görürüm
+6. Fakat işlem başlatılmaz","1. O zaman ""Geçersiz IBAN"" mesajını görürüm
+2. Fakat işlem başlatılmaz","||durum||iban||ad_soyad||tutar||
+|TR ile başlamıyor, uzunluk 26|DE330006100519786457841326|Test Alıcı|1.000,00|
+|Uzunluk sınırın altı: 25 karakter|TR33000610051978645784132|Test Alıcı|1.000,00|","*Amaç:* Geçersiz IBAN biçimiyle izlenen hata akışında mesajın gösterildiğini ve EFT'nin başlatılmadığını doğrulamak. Her satırda tek bir geçersiz özellik var.
+*Akış (hata akışı):* Ana akış; Alıcı IBAN TR ile başlamıyor veya 26 karakterden kısa → ""Geçersiz IBAN"" mesajı, EFT başlatılmaz
 *Kaynak kart:* ESUBE-2041
-*Öncelik (risk):* yüksek | *Tür:* negatif | *Teknik:* denklik paylarına ayırma, sınır değer analizi
-*İzlenebilirlik:* AC-02 | COND-02 | EP-IBAN-I1, EP-IBAN-I2, BVA-IBAN-25
+*Öncelik (risk):* yüksek | *Tür:* negatif | *Teknik:* uçtan uca akış, denklik paylarına ayırma, sınır değer analizi
+*İzlenebilirlik:* AC-02 | COND-02 | UC-HATA-IBAN, EP-IBAN-I1, EP-IBAN-I2, BVA-IBAN-25
 *Test ortamı:* TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri
 
 {noformat}
@@ -124,43 +180,24 @@
       | durum                             | iban                       | ad_soyad   | tutar    |
       | TR ile başlamıyor, uzunluk 26     | DE330006100519786457841326 | Test Alıcı | 1.000,00 |
       | Uzunluk sınırın altı: 25 karakter | TR33000610051978645784132  | Test Alıcı | 1.000,00 |
-{noformat}","para-transferleri","eft","negatif",""
-"[TS-ESUBE-2041-007] Gönder butonuna art arda iki kez basıldığında tek EFT işlemi oluşur","Test","High","ESUBE-2041","*Amaç:* Tekrar gönderimde mükerrer EFT oluşmadığını doğrulamak (hata tahmini).
+{noformat}","para-transferleri","eft","hata-akisi","negatif","ESUBE-2041",""
+"[TS-ESUBE-2041-004] Zorunlu alanlardan biri boş bırakıldığında EFT başlatılmaz ve zorunlu alan mesajı gösterilir","Test Senaryosu","Medium","ESUBE-2041","hata akışı","1. Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım
+2. Ve Para Transferleri menüsünden EFT ekranını açmışım
+3. Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
+4. Diyelim ki gönderici hesabımda en az ""1.000,00"" TL kullanılabilir bakiye var","1. Eğer ki Alıcı IBAN alanına ""<iban>"" yazarsam
+2. Ve Alıcı Adı Soyadı alanına ""<ad_soyad>"" yazarsam
+3. Ve Tutar alanına ""<tutar>"" yazarsam
+4. Ve Gönder butonuna basarsam
+5. O zaman ""Lütfen zorunlu alanları doldurunuz"" mesajını görürüm
+6. Fakat işlem başlatılmaz","1. O zaman ""Lütfen zorunlu alanları doldurunuz"" mesajını görürüm
+2. Fakat işlem başlatılmaz","||durum||iban||ad_soyad||tutar||
+|Alıcı IBAN boş| |Test Alıcı|1.000,00|
+|Alıcı Adı Soyadı boş|TR330006100519786457841326| |1.000,00|
+|Tutar boş|TR330006100519786457841326|Test Alıcı| |","*Amaç:* Alıcı IBAN, Alıcı Adı Soyadı veya Tutar alanı boşken izlenen hata akışında mesajın gösterildiğini ve EFT'nin başlatılmadığını doğrulamak.
+*Akış (hata akışı):* Ana akış; zorunlu alanlardan biri boş → ""Lütfen zorunlu alanları doldurunuz"" mesajı, EFT başlatılmaz
 *Kaynak kart:* ESUBE-2041
-*Öncelik (risk):* yüksek | *Tür:* negatif | *Teknik:* hata tahmini
-*İzlenebilirlik:* AC-04 | COND-04 | EG-01
-*Test ortamı:* TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri
-*Veri:* Geçerli bilgiler, tutar 1.000,00
-
-{noformat}
-# language: tr
-Özellik: EFT Para Transferi
-
-  Geçmiş:
-    Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım
-    Ve Para Transferleri menüsünden EFT ekranını açmışım
-    Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
-
-  @TS-ESUBE-2041-007 @negatif
-  Senaryo: Gönder butonuna art arda iki kez basıldığında tek EFT işlemi oluşur
-    Diyelim ki gönderici hesabımda en az ""1.000,00"" TL kullanılabilir bakiye var
-    Eğer ki Alıcı IBAN alanına ""TR330006100519786457841326"" yazarsam
-    Ve Alıcı Adı Soyadı alanına ""Test Alıcı"" yazarsam
-    Ve Tutar alanına ""1.000,00"" yazarsam
-    Ve Gönder butonuna aralarında bekleme olmadan iki kez basarsam
-    O zaman ""İşleminiz başarıyla gerçekleştirilmiştir"" mesajını bir kez görürüm
-    Ve ekranda tek bir dekont numarası görürüm
-{noformat}
-
-*Son koşullar:*
-* Gönderici test hesabından EFT işlemi oluşur. Senaryo tekrar koşulmadan önce bakiyenin ön koşuldaki tutarı karşıladığı kontrol edilmelidir.
-
-*Notlar:*
-* Beklenen sonuç AC-04'e dayanır: tek gönderim için tek başarı mesajı ve tek dekont numarası.","para-transferleri","eft","negatif",""
-"[TS-ESUBE-2041-004] Zorunlu alanlardan biri boş bırakıldığında EFT başlatılmaz ve zorunlu alan mesajı gösterilir","Test","Medium","ESUBE-2041","*Amaç:* Alıcı IBAN, Alıcı Adı Soyadı ve Tutar alanlarının her biri tek başına boşken işlemin başlatılmadığını doğrulamak.
-*Kaynak kart:* ESUBE-2041
-*Öncelik (risk):* orta | *Tür:* negatif | *Teknik:* kabul kriterine dayalı, denklik paylarına ayırma
-*İzlenebilirlik:* AC-01, BR-02, UI-01 | COND-01 | EP-IBAN-EMPTY, EP-NAME-EMPTY, EP-AMT-EMPTY
+*Öncelik (risk):* orta | *Tür:* negatif | *Teknik:* uçtan uca akış, kabul kriterine dayalı, denklik paylarına ayırma
+*İzlenebilirlik:* AC-01, BR-02, UI-01 | COND-01 | UC-HATA-ZORUNLU, EP-IBAN-EMPTY, EP-NAME-EMPTY, EP-AMT-EMPTY
 *Test ortamı:* TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri
 
 {noformat}
@@ -174,17 +211,20 @@
 
   @TS-ESUBE-2041-004 @negatif
   Senaryo Taslağı: Zorunlu alanlardan biri boş bırakıldığında EFT başlatılmaz ve zorunlu alan mesajı gösterilir
-    Eğer ki <bos_alan> alanını boş bırakıp diğer zorunlu alanları geçerli değerlerle doldurursam
+    Diyelim ki gönderici hesabımda en az ""1.000,00"" TL kullanılabilir bakiye var
+    Eğer ki Alıcı IBAN alanına ""<iban>"" yazarsam
+    Ve Alıcı Adı Soyadı alanına ""<ad_soyad>"" yazarsam
+    Ve Tutar alanına ""<tutar>"" yazarsam
     Ve Gönder butonuna basarsam
     O zaman ""Lütfen zorunlu alanları doldurunuz"" mesajını görürüm
     Fakat işlem başlatılmaz
 
     Örnekler:
-      | durum                | bos_alan         |
-      | Alıcı IBAN boş       | Alıcı IBAN       |
-      | Alıcı Adı Soyadı boş | Alıcı Adı Soyadı |
-      | Tutar boş            | Tutar            |
+      | durum                | iban                       | ad_soyad   | tutar    |
+      | Alıcı IBAN boş       |                            | Test Alıcı | 1.000,00 |
+      | Alıcı Adı Soyadı boş | TR330006100519786457841326 |            | 1.000,00 |
+      | Tutar boş            | TR330006100519786457841326 | Test Alıcı |          |
 {noformat}
 
 *Notlar:*
-* Diğer alanlar için geçerli değerler: Alıcı IBAN TR330006100519786457841326, Alıcı Adı Soyadı Test Alıcı, Tutar 1.000,00.","para-transferleri","eft","negatif",""
+* Örnekler tablosundaki boş hücre, o alana hiçbir şey yazılmayacağı anlamına gelir.","para-transferleri","eft","hata-akisi","negatif","ESUBE-2041",""

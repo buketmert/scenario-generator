@@ -12,8 +12,8 @@ Bu dosya yalnızca okunabilirlik ve tutarlılık için temel kuralları içerir.
 | Kim | Ne yapar |
 |---|---|
 | Agent | Adımları JSON'da Gherkin cümlesi olarak yazar: `{"keyword": "when", "text": "..."}`. Ortak ön koşulları `feature.background`, test verisini `test_data` içine koyar. |
-| `scripts/render_gherkin.py` | `.feature` dosyasını oluşturur: anahtar kelimeleri Türkçeye çevirir, Geçmiş ve Örnekler bloklarını, etiketleri ve kaynak yorumlarını ekler; `notes` ve `postconditions` alanlarını `# Not:` ve `# Son koşul:` yorumları olarak yazar; yapıyı ve tırnak içindeki beklenen metinleri denetler. |
-| `scripts/jira_export.py` | Seçim listesinde işaretli her senaryoyu, Geçmiş adımları dâhil tek başına okunabilen bir Gherkin bloğuyla Jira CSV satırına yazar. |
+| `scripts/render_gherkin.py` | `.feature` dosyasını oluşturur: anahtar kelimeleri Türkçeye çevirir, Geçmiş ve Örnekler bloklarını, etiketleri ve kaynak yorumlarını ekler; senaryonun akışını (`UC`) `# Akış:`, `notes` ve `postconditions` alanlarını `# Not:` ve `# Son koşul:` yorumları olarak yazar; yapıyı ve tırnak içindeki beklenen metinleri denetler. |
+| `scripts/jira_export.py` | Seçim listesinde işaretli her senaryoyu bir Test Senaryosu kartı satırına yazar: ön koşullar, uçtan uca test adımları, beklenen sonuç ve test verisi ayrı sütunlarda, Geçmiş dâhil tam Gherkin açıklamada. |
 
 ## 2. Anahtar kelimeler
 
@@ -31,9 +31,12 @@ Dosya `# language: tr` satırıyla başlar.
 
 1. Sıra `Diyelim ki` → `Eğer ki` → `O zaman`. `Ve` ve `Fakat` önceki adımın
    türünü sürdürür; senaryonun ilk adımı olamaz.
-2. **Tek davranış:** bir senaryoda bir eylem bloğu ve bir sonuç bloğu olur.
-   Sonuçtan sonra yeni bir eylem geliyorsa senaryo ikiye bölünür (script
-   uyarır).
+2. **Uçtan uca akış:** bir senaryo bir akıştır (`scenario-construction.md`).
+   Geçmiş ve senaryo adımları birlikte giriş noktasından başlar; akış boyunca
+   eylemler ve kartta tanımlı ara doğrulamalar sırayla gelir (`Eğer ki` →
+   `O zaman` → `Eğer ki` → `O zaman` olabilir). Akışın ortasında yeni bir ön
+   koşul (`Diyelim ki`) olmaz; script uyarır. Farklı sonuçla biten akış ayrı
+   senaryodur.
 3. **Sonuçla biter:** son adım `O zaman` bloğunda olur (script hata verir).
 4. **Geçmiş (`feature.background`):** yalnızca tüm senaryolarda birebir aynı
    olan ön koşullar (giriş, ekrana gitme) buraya yazılır. Yalnızca `given` ve
@@ -114,7 +117,8 @@ Dosya `# language: tr` satırıyla başlar.
 
   @TS-ESUBE-2041-003 @negatif
   Senaryo Taslağı: Tutar limit dışında olduğunda EFT başlatılmaz ve limit uyarısı gösterilir
-    # Kaynak: AC-03, BR-01, UI-02 | COND-03 | BVA-AMT-0.99, BVA-AMT-50000.01, EP-AMT-I1, EP-AMT-I2
+    # Akış (hata akışı): Ana akış; Tutar limit dışında → "Tutar 1,00 TL ile 50.000,00 TL arasında olmalıdır" mesajı, EFT başlatılmaz
+    # Kaynak: AC-03, BR-01, UI-02 | COND-03 | UC-HATA-LIMIT, BVA-AMT-0.99, BVA-AMT-50000.01, EP-AMT-I1, EP-AMT-I2
     # Not: Bakiye ön koşulu, yetersiz bakiye kontrolünün limit kontrolünü maskelememesi için tutar kadar olmalıdır.
     Diyelim ki gönderici hesabımda en az "<tutar>" TL kullanılabilir bakiye var
     Eğer ki Alıcı IBAN alanına "<iban>" yazarsam

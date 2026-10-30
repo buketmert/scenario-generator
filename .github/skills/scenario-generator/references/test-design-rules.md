@@ -9,11 +9,14 @@ Bu dosya `SKILL.md` iş akışının 3–5. adımlarında kullanılır.
 |---|---|---|
 | Test esası (test basis) | Testin dayandığı kaynak: Jira kartının tüm alanları, yorumları ve ekleri (`card-analysis-rules.md`) | `test_basis.items` |
 | Test koşulu (test condition) | Test edilecek şey | `test_conditions` |
+| Uçtan uca akış (kullanım senaryosu) | Kullanıcının işe başladığı noktadan sonuca kadar kartta tanımlı bir yol: ana, alternatif veya hata akışı | `coverage_items` içinde `UC` öğesi |
 | Kapsam öğesi (coverage item) | Teknikle türetilen, test edilmesi gereken somut öğe: bir sınıf, bir sınır, bir kural | `coverage_items` |
-| Test senaryosu (test case) | Ön koşul, veri, adım ve beklenen sonuçtan oluşan, manuel uygulanabilir test | `test_scenarios` |
+| Test senaryosu (test case) | Bir akışın ön koşul, veri, adım ve beklenen sonuçla baştan sona manuel uygulanabilir tarifi | `test_scenarios` |
 | Test oracle | Beklenen sonucun kaynağı. Her zaman test esasıdır | `O zaman` adımları |
 
-Akış: **Test esası öğesi (AC, BR) → test koşulu → kapsam öğesi → senaryo.**
+Akış: **Test esası öğesi (AC, BR) → test koşulu → uçtan uca akışlar (UC) ve
+kapsam öğeleri → her akış için bir senaryo; kapsam öğeleri o senaryonun veri
+satırları.** Senaryonun nasıl kurulduğu `scenario-construction.md`'dedir.
 
 **Pozitif ve negatif senaryo**
 
@@ -31,6 +34,7 @@ uygulanabilir.
 
 | Kartta gördüğün | Teknik | Kapsam öğesi ön eki |
 |---|---|---|
+| Her kart: kullanıcı akışı, kartta tanımlı seçenekler ve her red/uyarı davranışı | Kullanım senaryosuna dayalı test (uçtan uca akış, `scenario-construction.md` §2) | `UC` |
 | Her kabul kriteri ve iş kuralı (`AC`, `BR`) | Kabul kriterine dayalı test | (öğenin kendisi) |
 | Ekteki tablo: limit, değer listesi, kural kombinasyonu | Tablonun yapısına göre denklik sınıfı, sınır değer veya karar tablosu | `EP`, `BVA`, `DT` |
 | Girdi alanı ve izinli değer kümesi veya format ("yalnızca rakam", "A, B veya C") | Denklik paylarına ayırma | `EP` |
@@ -77,9 +81,10 @@ Sıralamayı script yapar.
 ### Senaryo sayısı ve test derinliği
 
 **Sabit senaryo sayısı, kategori kotası veya dağılım hedefi yoktur.** Senaryo
-sayısı, kapsam öğelerinin ve her koşula risk seviyesine göre uygulanan
-derinliğin sonucudur. Kart büyüdükçe veya risk arttıkça sayı artar; küçük ve
-düşük riskli bir kart birkaç senaryoyla tamamlanabilir.
+sayısı karttaki akış sayısıdır; risk seviyesine göre uygulanan derinlik ise
+akışların veri satırlarını (koşum sayısını) belirler. Kartta tanımlı her akış
+risk seviyesinden bağımsız olarak bir senaryo alır; hata tahmininden gelen
+akışların sayısı aşağıdaki kurala bağlıdır.
 
 Her test koşulu, risk seviyesine karşılık gelen satırdaki tüm teknikleri alır.
 Satırlar birikimlidir: üst satır alttakileri de içerir.
@@ -97,16 +102,26 @@ kartta sonucu para, veri veya güvenliği etkileyen her hata tahmini eklenir.
 
 Sayıyı belirleyen kurallar:
 
-1. Yeni bir kapsam öğesi eklemeyen senaryo yazılmaz; sayıyı artırmak gerekçe
-   değildir.
+1. Yeni bir akış eklemeyen senaryo yazılmaz; sayıyı artırmak gerekçe değildir.
 2. Sayıyı azaltmak için kapsam öğesi atlanmaz. Kapsanamayan öğe gerekçesiyle
    `uncovered_items` içine yazılır.
-3. Aynı adımlar ve aynı türde beklenen sonuç için farklı veriler tek
-   senaryoda veri seti olarak toplanır. Böylece senaryo sayısı değil koşum
-   sayısı artar.
+3. Aynı akışı aynı türde beklenen sonuçla izleyen farklı veriler tek
+   senaryoda veri satırı olarak toplanır. Böylece senaryo sayısı değil koşum
+   sayısı artar (`scenario-construction.md` §3, §5).
 4. Pozitif/negatif oranı hedeflenmez; kartın kurallarından çıkar.
 
 ## 4. Teknikler
+
+### 4.0 Kullanım senaryosuna dayalı test (uçtan uca akış)
+
+**Ne zaman:** her kartta, senaryo yazmadan önce.
+
+**Nasıl:** `scenario-construction.md` §2'ye göre ana akış, alternatif akışlar
+ve hata akışları çıkarılır; her biri bir `UC` kapsam öğesidir. Diğer
+tekniklerin kapsam öğeleri bu akışlara veri satırı olarak yerleşir (§3).
+
+**Kapsam ölçütü:** senaryosu olan akış / tanımlanan akış × 100. Hedef %100;
+sonucu soruya bağlı akış taslak senaryoyla kapsanır.
 
 ### 4.1 Kabul kriterine dayalı test (ATDD)
 
@@ -257,8 +272,9 @@ soru yazılır veya `out_of_scope` içine eklenir.
 ## 5. Senaryo yazım kuralları
 
 Senaryolar manuel test için yazılır: test uzmanı başka bir kaynağa bakmadan
-senaryoyu uygulayabilmeli ve sonucu değerlendirebilmelidir. Gherkin biçimi
-`gherkin-format-rules.md`'de.
+senaryoyu baştan sona uygulayabilmeli ve sonucu değerlendirebilmelidir. Her
+senaryo bir uçtan uca akıştır; kuruluşu `scenario-construction.md` §4'te,
+Gherkin biçimi `gherkin-format-rules.md`'dedir.
 
 1. **Başlık** sonucu söyler, 120 karakteri geçmez: "Tutar 0,99 TL olduğunda
    EFT başlatılmaz ve limit uyarısı gösterilir".

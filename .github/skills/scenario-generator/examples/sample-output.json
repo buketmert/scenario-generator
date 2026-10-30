@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.1.0",
+  "schema_version": "3.0.0",
   "generated_at": "2026-10-25T23:30:00+03:00",
   "source": {
     "jira_key": "ESUBE-2041",
@@ -428,6 +428,7 @@
         "rationale": "Basit doğrulama, ancak kural sonradan değişti (C-02); eksik kontrol para çıkışına yol açmaz."
       },
       "techniques": [
+        "use_case_based",
         "acceptance_criteria_based",
         "equivalence_partitioning"
       ]
@@ -446,6 +447,7 @@
         "rationale": "Hatalı IBAN'ın kabulü paranın geçersiz veya yanlış hesaba gönderilmesine yol açar."
       },
       "techniques": [
+        "use_case_based",
         "equivalence_partitioning",
         "boundary_value_analysis"
       ]
@@ -465,6 +467,7 @@
         "rationale": "Sınırda yanlış karşılaştırma limit dışı para çıkışına yol açar; Jira önceliği High."
       },
       "techniques": [
+        "use_case_based",
         "equivalence_partitioning",
         "boundary_value_analysis"
       ]
@@ -482,12 +485,70 @@
         "rationale": "Ana para transferi akışı; hata doğrudan müşteri parasını etkiler."
       },
       "techniques": [
+        "use_case_based",
         "acceptance_criteria_based",
         "error_guessing"
       ]
     }
   ],
   "coverage_items": [
+    {
+      "id": "UC-ANA",
+      "technique": "use_case_based",
+      "flow_type": "main",
+      "test_condition_ids": [
+        "COND-01",
+        "COND-02",
+        "COND-03",
+        "COND-04"
+      ],
+      "description": "E-Şube'ye bireysel müşteri girişi → Para Transferleri > EFT → Gönderici Hesap seçimi → Alıcı IBAN, Alıcı Adı Soyadı ve Tutar girişi → Gönder → başarı mesajı ve dekont numarası"
+    },
+    {
+      "id": "UC-ALT-CIFTGONDER",
+      "technique": "use_case_based",
+      "flow_type": "alternative",
+      "test_condition_ids": [
+        "COND-04"
+      ],
+      "description": "Ana akış; Gönder butonuna art arda iki kez basılır → tek başarı mesajı ve tek dekont numarası"
+    },
+    {
+      "id": "UC-HATA-LIMIT",
+      "technique": "use_case_based",
+      "flow_type": "exception",
+      "test_condition_ids": [
+        "COND-03"
+      ],
+      "description": "Ana akış; Tutar limit dışında → \"Tutar 1,00 TL ile 50.000,00 TL arasında olmalıdır\" mesajı, EFT başlatılmaz"
+    },
+    {
+      "id": "UC-HATA-ZORUNLU",
+      "technique": "use_case_based",
+      "flow_type": "exception",
+      "test_condition_ids": [
+        "COND-01"
+      ],
+      "description": "Ana akış; zorunlu alanlardan biri boş → \"Lütfen zorunlu alanları doldurunuz\" mesajı, EFT başlatılmaz"
+    },
+    {
+      "id": "UC-HATA-IBAN",
+      "technique": "use_case_based",
+      "flow_type": "exception",
+      "test_condition_ids": [
+        "COND-02"
+      ],
+      "description": "Ana akış; Alıcı IBAN TR ile başlamıyor veya 26 karakterden kısa → \"Geçersiz IBAN\" mesajı, EFT başlatılmaz"
+    },
+    {
+      "id": "UC-HATA-IBANUZUN",
+      "technique": "use_case_based",
+      "flow_type": "exception",
+      "test_condition_ids": [
+        "COND-02"
+      ],
+      "description": "Ana akış; Alıcı IBAN 26 karakterden uzun → beklenen davranış belirsiz (CF-01, Q-01)"
+    },
     {
       "id": "EP-REQ-V",
       "technique": "equivalence_partitioning",
@@ -711,13 +772,14 @@
   "test_scenarios": [
     {
       "id": "TS-ESUBE-2041-001",
-      "title": "Geçerli bilgilerle gönderilen EFT başarıyla tamamlanır ve dekont numarası gösterilir",
-      "objective": "Zorunlu alanları geçerli değerlerle doldurulmuş EFT'nin tamamlandığını, başarı mesajının ve dekont numarasının gösterildiğini doğrulamak.",
+      "title": "Geçerli bilgilerle gönderilen EFT tamamlanır ve dekont numarası gösterilir",
+      "objective": "Ana akışı uçtan uca doğrulamak: geçerli alıcı bilgileri ve limit içindeki tutarlarla (tipik değer ve sınırlar) EFT'nin tamamlandığını, başarı mesajının ve dekont numarasının gösterildiğini görmek.",
       "status": "ready",
       "scenario_type": "positive",
       "test_level": "system",
       "test_type": "functional",
       "techniques": [
+        "use_case_based",
         "acceptance_criteria_based",
         "equivalence_partitioning",
         "boundary_value_analysis"
@@ -740,10 +802,15 @@
           "COND-04"
         ],
         "coverage_item_ids": [
+          "UC-ANA",
           "EP-REQ-V",
           "EP-IBAN-V",
           "BVA-IBAN-26",
-          "EP-AMT-V"
+          "EP-AMT-V",
+          "BVA-AMT-1.00",
+          "BVA-AMT-1.01",
+          "BVA-AMT-49999.99",
+          "BVA-AMT-50000.00"
         ]
       },
       "steps": [
@@ -794,17 +861,53 @@
         "data_sets": [
           {
             "id": "DS-01",
-            "label": "Geçerli IBAN (TR, 26 karakter), tutar 1.000,00",
+            "label": "Tipik tutar: 1.000,00",
             "values": {
               "iban": "TR330006100519786457841326",
               "ad_soyad": "Test Alıcı",
               "tutar": "1.000,00"
             }
+          },
+          {
+            "id": "DS-02",
+            "label": "Alt sınır: 1,00",
+            "values": {
+              "iban": "TR330006100519786457841326",
+              "ad_soyad": "Test Alıcı",
+              "tutar": "1,00"
+            }
+          },
+          {
+            "id": "DS-03",
+            "label": "Alt sınırın hemen üstü: 1,01",
+            "values": {
+              "iban": "TR330006100519786457841326",
+              "ad_soyad": "Test Alıcı",
+              "tutar": "1,01"
+            }
+          },
+          {
+            "id": "DS-04",
+            "label": "Üst sınırın hemen altı: 49.999,99",
+            "values": {
+              "iban": "TR330006100519786457841326",
+              "ad_soyad": "Test Alıcı",
+              "tutar": "49.999,99"
+            }
+          },
+          {
+            "id": "DS-05",
+            "label": "Üst sınır: 50.000,00",
+            "values": {
+              "iban": "TR330006100519786457841326",
+              "ad_soyad": "Test Alıcı",
+              "tutar": "50.000,00"
+            }
           }
         ]
       },
       "postconditions": [
-        "Gönderici test hesabından gerçek bir EFT işlemi oluşur. Senaryo tekrar koşulmadan önce bakiyenin ön koşuldaki tutarı karşıladığı kontrol edilmelidir."
+        "Her veri satırı gönderici test hesabından ayrı bir EFT işlemi oluşturur; satırlar art arda koşulacaksa toplam tutar kadar bakiye hazırlanmalıdır."
       ],
       "tags": [
         "@smoke"
@@ -812,31 +915,27 @@
     },
     {
       "id": "TS-ESUBE-2041-002",
-      "title": "Tutar limitlerde veya limitlerin hemen içinde olduğunda EFT başarıyla tamamlanır",
-      "objective": "Bireysel müşteri limitlerinin alt ve üst sınırlarında ve hemen içindeki değerlerde EFT'nin kabul edildiğini doğrulamak (yüksek risk: 3 değerli sınır analizi).",
+      "title": "Gönder butonuna art arda iki kez basıldığında tek EFT işlemi oluşur",
+      "objective": "Ana akışın tekrar gönderimle izlendiği alternatif akışta mükerrer EFT oluşmadığını doğrulamak (hata tahmini).",
       "status": "ready",
-      "scenario_type": "positive",
+      "scenario_type": "negative",
       "test_level": "system",
       "test_type": "functional",
       "techniques": [
-        "boundary_value_analysis"
+        "use_case_based",
+        "error_guessing"
       ],
       "priority": "high",
       "traceability": {
         "basis_ids": [
-          "AC-03",
-          "BR-01",
           "AC-04"
         ],
         "test_condition_ids": [
-          "COND-03",
           "COND-04"
         ],
         "coverage_item_ids": [
-          "BVA-AMT-1.00",
-          "BVA-AMT-1.01",
-          "BVA-AMT-49999.99",
-          "BVA-AMT-50000.00"
+          "UC-ALT-CIFTGONDER",
+          "EG-01"
         ]
       },
       "steps": [
@@ -858,11 +957,15 @@
         },
         {
           "keyword": "and",
-          "text": "Gönder butonuna basarsam"
+          "text": "Gönder butonuna aralarında bekleme olmadan iki kez basarsam"
         },
         {
           "keyword": "then",
-          "text": "\"İşleminiz başarıyla gerçekleştirilmiştir\" mesajını görürüm"
+          "text": "\"İşleminiz başarıyla gerçekleştirilmiştir\" mesajını bir kez görürüm"
+        },
+        {
+          "keyword": "and",
+          "text": "ekranda tek bir dekont numarası görürüm"
         }
       ],
       "test_data": {
@@ -883,55 +986,32 @@
         "data_sets": [
           {
             "id": "DS-01",
-            "label": "Alt sınır: 1,00",
+            "label": "Geçerli bilgiler, tutar 1.000,00",
             "values": {
               "iban": "TR330006100519786457841326",
               "ad_soyad": "Test Alıcı",
-              "tutar": "1,00"
-            }
-          },
-          {
-            "id": "DS-02",
-            "label": "Alt sınırın hemen üstü: 1,01",
-            "values": {
-              "iban": "TR330006100519786457841326",
-              "ad_soyad": "Test Alıcı",
-              "tutar": "1,01"
-            }
-          },
-          {
-            "id": "DS-03",
-            "label": "Üst sınırın hemen altı: 49.999,99",
-            "values": {
-              "iban": "TR330006100519786457841326",
-              "ad_soyad": "Test Alıcı",
-              "tutar": "49.999,99"
-            }
-          },
-          {
-            "id": "DS-04",
-            "label": "Üst sınır: 50.000,00",
-            "values": {
-              "iban": "TR330006100519786457841326",
-              "ad_soyad": "Test Alıcı",
-              "tutar": "50.000,00"
+              "tutar": "1.000,00"
             }
           }
         ]
       },
+      "notes": [
+        "Beklenen sonuç AC-04'e dayanır: tek gönderim için tek başarı mesajı ve tek dekont numarası."
+      ],
       "postconditions": [
-        "Her veri seti gönderici test hesabından ayrı bir EFT işlemi oluşturur; dört veri setinin toplamı için bakiye hazırlanmalıdır."
+        "Gönderici test hesabından EFT işlemi oluşur. Senaryo tekrar koşulmadan önce bakiyenin ön koşuldaki tutarı karşıladığı kontrol edilmelidir."
       ]
     },
     {
       "id": "TS-ESUBE-2041-003",
       "title": "Tutar limit dışında olduğunda EFT başlatılmaz ve limit uyarısı gösterilir",
-      "objective": "Limitlerin hemen dışındaki tutarların reddedildiğini ve işlemin başlatılmadığını doğrulamak.",
+      "objective": "Limit dışı tutarla izlenen hata akışında uyarının gösterildiğini ve EFT'nin başlatılmadığını doğrulamak.",
       "status": "ready",
       "scenario_type": "negative",
       "test_level": "system",
       "test_type": "functional",
       "techniques": [
+        "use_case_based",
         "boundary_value_analysis",
         "equivalence_partitioning"
       ],
@@ -946,6 +1026,7 @@
           "COND-03"
         ],
         "coverage_item_ids": [
+          "UC-HATA-LIMIT",
           "BVA-AMT-0.99",
           "BVA-AMT-50000.01",
           "EP-AMT-I1",
@@ -1025,12 +1106,13 @@
     {
       "id": "TS-ESUBE-2041-004",
       "title": "Zorunlu alanlardan biri boş bırakıldığında EFT başlatılmaz ve zorunlu alan mesajı gösterilir",
-      "objective": "Alıcı IBAN, Alıcı Adı Soyadı ve Tutar alanlarının her biri tek başına boşken işlemin başlatılmadığını doğrulamak.",
+      "objective": "Alıcı IBAN, Alıcı Adı Soyadı veya Tutar alanı boşken izlenen hata akışında mesajın gösterildiğini ve EFT'nin başlatılmadığını doğrulamak.",
       "status": "ready",
       "scenario_type": "negative",
       "test_level": "system",
       "test_type": "functional",
       "techniques": [
+        "use_case_based",
         "acceptance_criteria_based",
         "equivalence_partitioning"
       ],
@@ -1045,6 +1127,7 @@
           "COND-01"
         ],
         "coverage_item_ids": [
+          "UC-HATA-ZORUNLU",
           "EP-IBAN-EMPTY",
           "EP-NAME-EMPTY",
           "EP-AMT-EMPTY"
@@ -1052,8 +1135,20 @@
       },
       "steps": [
         {
+          "keyword": "given",
+          "text": "gönderici hesabımda en az \"1.000,00\" TL kullanılabilir bakiye var"
+        },
+        {
           "keyword": "when",
-          "text": "<bos_alan> alanını boş bırakıp diğer zorunlu alanları geçerli değerlerle doldurursam"
+          "text": "Alıcı IBAN alanına \"<iban>\" yazarsam"
+        },
+        {
+          "keyword": "and",
+          "text": "Alıcı Adı Soyadı alanına \"<ad_soyad>\" yazarsam"
+        },
+        {
+          "keyword": "and",
+          "text": "Tutar alanına \"<tutar>\" yazarsam"
         },
         {
           "keyword": "and",
@@ -1071,8 +1166,16 @@
       "test_data": {
         "parameters": [
           {
-            "name": "bos_alan",
-            "description": "Boş bırakılan zorunlu alan"
+            "name": "iban",
+            "description": "Alıcı IBAN"
+          },
+          {
+            "name": "ad_soyad",
+            "description": "Alıcı adı soyadı"
+          },
+          {
+            "name": "tutar",
+            "description": "EFT tutarı (TL, kartta geçen biçimde)"
           }
         ],
         "data_sets": [
@@ -1080,38 +1183,45 @@
             "id": "DS-01",
             "label": "Alıcı IBAN boş",
             "values": {
-              "bos_alan": "Alıcı IBAN"
+              "iban": "",
+              "ad_soyad": "Test Alıcı",
+              "tutar": "1.000,00"
             }
           },
           {
             "id": "DS-02",
             "label": "Alıcı Adı Soyadı boş",
             "values": {
-              "bos_alan": "Alıcı Adı Soyadı"
+              "iban": "TR330006100519786457841326",
+              "ad_soyad": "",
+              "tutar": "1.000,00"
             }
           },
           {
             "id": "DS-03",
             "label": "Tutar boş",
             "values": {
-              "bos_alan": "Tutar"
+              "iban": "TR330006100519786457841326",
+              "ad_soyad": "Test Alıcı",
+              "tutar": ""
             }
           }
         ]
       },
       "notes": [
-        "Diğer alanlar için geçerli değerler: Alıcı IBAN TR330006100519786457841326, Alıcı Adı Soyadı Test Alıcı, Tutar 1.000,00."
+        "Örnekler tablosundaki boş hücre, o alana hiçbir şey yazılmayacağı anlamına gelir."
       ]
     },
     {
       "id": "TS-ESUBE-2041-005",
       "title": "IBAN TR ile başlamadığında veya 26 karakterden kısa olduğunda EFT başlatılmaz",
-      "objective": "TR ile başlamayan ve 25 karakterlik IBAN'ın reddedildiğini doğrulamak. Her satırda tek bir geçersiz özellik var.",
+      "objective": "Geçersiz IBAN biçimiyle izlenen hata akışında mesajın gösterildiğini ve EFT'nin başlatılmadığını doğrulamak. Her satırda tek bir geçersiz özellik var.",
       "status": "ready",
       "scenario_type": "negative",
       "test_level": "system",
       "test_type": "functional",
       "techniques": [
+        "use_case_based",
         "equivalence_partitioning",
         "boundary_value_analysis"
       ],
@@ -1124,6 +1234,7 @@
           "COND-02"
         ],
         "coverage_item_ids": [
+          "UC-HATA-IBAN",
           "EP-IBAN-I1",
           "EP-IBAN-I2",
           "BVA-IBAN-25"
@@ -1199,12 +1310,13 @@
     {
       "id": "TS-ESUBE-2041-006",
       "title": "IBAN 26 karakterden uzun girildiğinde Geçersiz IBAN mesajı gösterilir",
-      "objective": "26 karakterden uzun IBAN'ın reddedildiğini doğrulamak. Beklenen davranış CF-01 çelişkisi nedeniyle netleşmedi; AC-02'ye dayalı varsayımla yazıldı.",
+      "objective": "26 karakterden uzun IBAN ile izlenen hata akışını doğrulamak. Beklenen davranış CF-01 çelişkisi nedeniyle netleşmedi; AC-02'ye dayalı varsayımla yazıldı.",
       "status": "needs_clarification",
       "scenario_type": "negative",
       "test_level": "system",
       "test_type": "functional",
       "techniques": [
+        "use_case_based",
         "equivalence_partitioning",
         "boundary_value_analysis"
       ],
@@ -1218,6 +1330,7 @@
           "COND-02"
         ],
         "coverage_item_ids": [
+          "UC-HATA-IBANUZUN",
           "EP-IBAN-I3",
           "BVA-IBAN-27"
         ]
@@ -1285,93 +1398,6 @@
       "assumption_ids": [
         "A-01"
       ]
-    },
-    {
-      "id": "TS-ESUBE-2041-007",
-      "title": "Gönder butonuna art arda iki kez basıldığında tek EFT işlemi oluşur",
-      "objective": "Tekrar gönderimde mükerrer EFT oluşmadığını doğrulamak (hata tahmini).",
-      "status": "ready",
-      "scenario_type": "negative",
-      "test_level": "system",
-      "test_type": "functional",
-      "techniques": [
-        "error_guessing"
-      ],
-      "priority": "high",
-      "traceability": {
-        "basis_ids": [
-          "AC-04"
-        ],
-        "test_condition_ids": [
-          "COND-04"
-        ],
-        "coverage_item_ids": [
-          "EG-01"
-        ]
-      },
-      "steps": [
-        {
-          "keyword": "given",
-          "text": "gönderici hesabımda en az \"<tutar>\" TL kullanılabilir bakiye var"
-        },
-        {
-          "keyword": "when",
-          "text": "Alıcı IBAN alanına \"<iban>\" yazarsam"
-        },
-        {
-          "keyword": "and",
-          "text": "Alıcı Adı Soyadı alanına \"<ad_soyad>\" yazarsam"
-        },
-        {
-          "keyword": "and",
-          "text": "Tutar alanına \"<tutar>\" yazarsam"
-        },
-        {
-          "keyword": "and",
-          "text": "Gönder butonuna aralarında bekleme olmadan iki kez basarsam"
-        },
-        {
-          "keyword": "then",
-          "text": "\"İşleminiz başarıyla gerçekleştirilmiştir\" mesajını bir kez görürüm"
-        },
-        {
-          "keyword": "and",
-          "text": "ekranda tek bir dekont numarası görürüm"
-        }
-      ],
-      "test_data": {
-        "parameters": [
-          {
-            "name": "iban",
-            "description": "Alıcı IBAN"
-          },
-          {
-            "name": "ad_soyad",
-            "description": "Alıcı adı soyadı"
-          },
-          {
-            "name": "tutar",
-            "description": "EFT tutarı (TL, kartta geçen biçimde)"
-          }
-        ],
-        "data_sets": [
-          {
-            "id": "DS-01",
-            "label": "Geçerli bilgiler, tutar 1.000,00",
-            "values": {
-              "iban": "TR330006100519786457841326",
-              "ad_soyad": "Test Alıcı",
-              "tutar": "1.000,00"
-            }
-          }
-        ]
-      },
-      "notes": [
-        "Beklenen sonuç AC-04'e dayanır: tek gönderim için tek başarı mesajı ve tek dekont numarası."
-      ],
-      "postconditions": [
-        "Gönderici test hesabından EFT işlemi oluşur. Senaryo tekrar koşulmadan önce bakiyenin ön koşuldaki tutarı karşıladığı kontrol edilmelidir."
-      ]
     }
   ],
   "coverage_summary": {
@@ -1398,7 +1424,6 @@
         "basis_id": "AC-03",
         "scenario_ids": [
           "TS-ESUBE-2041-001",
-          "TS-ESUBE-2041-002",
           "TS-ESUBE-2041-003"
         ],
         "status": "covered"
@@ -1407,8 +1432,7 @@
         "basis_id": "AC-04",
         "scenario_ids": [
           "TS-ESUBE-2041-001",
-          "TS-ESUBE-2041-002",
-          "TS-ESUBE-2041-007"
+          "TS-ESUBE-2041-002"
         ],
         "status": "covered"
       },
@@ -1416,7 +1440,6 @@
         "basis_id": "BR-01",
         "scenario_ids": [
           "TS-ESUBE-2041-001",
-          "TS-ESUBE-2041-002",
           "TS-ESUBE-2041-003"
         ],
         "status": "covered"
@@ -1431,6 +1454,12 @@
       }
     ],
     "techniques": [
+      {
+        "technique": "use_case_based",
+        "total_items": 6,
+        "covered_items": 6,
+        "coverage_percent": 100.0
+      },
       {
         "technique": "equivalence_partitioning",
         "total_items": 11,
@@ -1452,10 +1481,10 @@
     ],
     "uncovered_items": [],
     "scenario_counts": {
-      "total": 7,
-      "positive": 2,
+      "total": 6,
+      "positive": 1,
       "negative": 5,
-      "ready": 6,
+      "ready": 5,
       "needs_clarification": 1
     }
   },

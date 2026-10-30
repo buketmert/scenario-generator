@@ -3,7 +3,7 @@
 **Kart:** E-Şube'den EFT ile para gönderme  
 **Durum:** kısmi — Kart büyük ölçüde test edilebilir. 26 karakterden uzun IBAN'daki davranış çelişkili (CF-01), yetersiz bakiye davranışı tanımsız ve akış videosu işlenemedi.  
 **Test ortamı:** TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri  
-**Üretilen senaryo:** 7 (6 hazır, 1 taslak)
+**Üretilen senaryo:** 6 (5 hazır, 1 taslak)
 
 ## Açık sorular
 
@@ -77,15 +77,26 @@
 |---|---|---|---|
 | ESUBE-1980 | epic | kullanıldı | Para transferleri yenileme epic'i; bağlam için okundu, ek kural gelmedi. |
 
+## Uçtan uca akışlar
+
+| Akış | Tür | Başlangıçtan sonuca | Senaryo |
+|---|---|---|---|
+| UC-ANA | ana akış | E-Şube'ye bireysel müşteri girişi → Para Transferleri > EFT → Gönderici Hesap seçimi → Alıcı IBAN, Alıcı Adı Soyadı ve Tutar girişi → Gönder → başarı mesajı ve dekont numarası | TS-ESUBE-2041-001 |
+| UC-ALT-CIFTGONDER | alternatif akış | Ana akış; Gönder butonuna art arda iki kez basılır → tek başarı mesajı ve tek dekont numarası | TS-ESUBE-2041-002 |
+| UC-HATA-LIMIT | hata akışı | Ana akış; Tutar limit dışında → "Tutar 1,00 TL ile 50.000,00 TL arasında olmalıdır" mesajı, EFT başlatılmaz | TS-ESUBE-2041-003 |
+| UC-HATA-ZORUNLU | hata akışı | Ana akış; zorunlu alanlardan biri boş → "Lütfen zorunlu alanları doldurunuz" mesajı, EFT başlatılmaz | TS-ESUBE-2041-004 |
+| UC-HATA-IBAN | hata akışı | Ana akış; Alıcı IBAN TR ile başlamıyor veya 26 karakterden kısa → "Geçersiz IBAN" mesajı, EFT başlatılmaz | TS-ESUBE-2041-005 |
+| UC-HATA-IBANUZUN | hata akışı | Ana akış; Alıcı IBAN 26 karakterden uzun → beklenen davranış belirsiz (CF-01, Q-01) | TS-ESUBE-2041-006 |
+
 ## Kapsam
 
 | Öğe | Senaryolar | Durum | Not |
 |---|---|---|---|
 | AC-01 | TS-ESUBE-2041-001, TS-ESUBE-2041-004 | kapsandı |  |
 | AC-02 | TS-ESUBE-2041-001, TS-ESUBE-2041-005, TS-ESUBE-2041-006 | kısmen | 26 karakterden uzun IBAN senaryosu (TS-ESUBE-2041-006) Q-01 yanıtını bekliyor. |
-| AC-03 | TS-ESUBE-2041-001, TS-ESUBE-2041-002, TS-ESUBE-2041-003 | kapsandı |  |
-| AC-04 | TS-ESUBE-2041-001, TS-ESUBE-2041-002, TS-ESUBE-2041-007 | kapsandı |  |
-| BR-01 | TS-ESUBE-2041-001, TS-ESUBE-2041-002, TS-ESUBE-2041-003 | kapsandı |  |
+| AC-03 | TS-ESUBE-2041-001, TS-ESUBE-2041-003 | kapsandı |  |
+| AC-04 | TS-ESUBE-2041-001, TS-ESUBE-2041-002 | kapsandı |  |
+| BR-01 | TS-ESUBE-2041-001, TS-ESUBE-2041-003 | kapsandı |  |
 | BR-02 | TS-ESUBE-2041-001, TS-ESUBE-2041-004 | kapsandı |  |
 
 **Taslak senaryolar** (yanıt bekleyen):

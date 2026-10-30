@@ -33,6 +33,7 @@ RISK_ORDER = ["low", "medium", "high", "critical"]
 CHECK_IDS = [f"R{i}" for i in range(1, 11)]
 KIND_PREFIX = {"AC": "acceptance_criterion", "BR": "business_rule", "UI": "ui_detail", "CN": "constraint"}
 TECHNIQUE_PREFIX = {
+    "UC": "use_case_based",
     "EP": "equivalence_partitioning",
     "BVA": "boundary_value_analysis",
     "DT": "decision_table",
@@ -52,6 +53,7 @@ LABELS = {
     "tester": "test uzmanı", "designer": "tasarımcı", "other": "diğer", "unknown": "bilinmiyor",
     "critical": "kritik", "high": "yüksek", "medium": "orta", "low": "düşük",
     "positive": "pozitif", "negative": "negatif", "needs_clarification": "taslak",
+    "main": "ana akış", "alternative": "alternatif akış", "exception": "hata akışı",
 }
 # Seçim listesinin bir satırı: "- [x] 3. TS-ESUBE-2041-003 · yüksek · ... — Başlık"
 SELECTION_RE = re.compile(r"^\s*[-*]\s*\[([ xX])\]\s*(?:\d+\.\s*)?(TS-[A-Z][A-Z0-9]+-[0-9]+-[0-9]{3})\b(.*)$")
@@ -220,12 +222,14 @@ def check_steps(steps, where, rep, has_background, is_background=False):
         return
     if steps[0]["keyword"] == "then" and not has_background:
         rep.error(where, "senaryo 'O zaman' ile başlayamaz")
-    phase, phases, went_back = 0, [], False
+    # Uçtan uca akışta ara doğrulama olağandır (Eğer ki → O zaman → Eğer ki → O zaman);
+    # akışın ortasında yeni bir ön koşul ise senaryonun iki akışı birleştirdiğini gösterir.
+    phase, phases, late_given = 0, [], False
     for s in steps:
         kw = s["keyword"]
         new_phase = PHASE.get(kw, phase)
-        if new_phase < phase:
-            went_back = True
+        if new_phase == 1 and phase > 1:
+            late_given = True
         phase = new_phase
         phases.append(phase)
     if 3 not in phases:
@@ -234,9 +238,15 @@ def check_steps(steps, where, rep, has_background, is_background=False):
         rep.error(where, "senaryo beklenen sonuçla ('O zaman' bloğu) bitmiyor")
     if 2 not in phases:
         rep.warn(where, "eylem adımı ('Eğer ki') yok")
-    if went_back:
-        rep.warn(where, "sonuçtan sonra yeni eylem veya ön koşul var; tek davranış için senaryoyu bölmeyi düşünün")
+    if late_given:
+        rep.warn(where, "akışın ortasında yeni ön koşul ('Diyelim ki') var; ön koşullar akışın başında olur")
     return phases
+
+
+def flow_of(sc, items):
+    """Senaryonun bağlı olduğu uçtan uca akışlar (UC kapsam öğeleri); doğru senaryoda tam bir tane."""
+    return [items[i] for i in sc["traceability"]["coverage_item_ids"]
+            if i in items and items[i]["technique"] == "use_case_based"]
 
 
 def check_scenario(sc, doc, rep, ids, basis_texts):
@@ -273,7 +283,15 @@ def check_scenario(sc, doc, rep, ids, basis_texts):
     if not is_draft and blocking:
         rep.error(sid, f"ready senaryo bloklayıcı soruya bağlı: {blocking}")
 
-    phases = check_steps(sc["steps"], sid, rep, has_background=bool(doc["feature"].get("background")))
+    has_background = bool(doc["feature"].get("background"))
+    phases = check_steps(sc["steps"], sid, rep, has_background=has_background)
+
+    flows = flow_of(sc, ids["items"])
+    if len(flows) != 1:
+        found = ", ".join(f["id"] for f in flows) or "yok"
+        rep.error(sid, f"senaryo tam bir uçtan uca akışa (UC kapsam öğesi) bağlı olmalı; bulunan: {found}")
+    if not has_background and not any(s["keyword"] == "given" for s in sc["steps"]):
+        rep.warn(sid, "başlangıç durumu ('Diyelim ki') yok; uçtan uca akış giriş noktasından başlar")
 
     # parametreler
     params = [p["name"] for p in sc["test_data"]["parameters"]]
@@ -353,6 +371,13 @@ def check_document(doc, schema, rep):
     for value, count in Counter(s["id"] for s in scenarios).items():
         if count > 1:
             rep.error("senaryo", f"{value} birden fazla kez tanımlı")
+    flow_use = Counter(f["id"] for s in scenarios for f in flow_of(s, ids["items"]))
+    for flow_id, count in flow_use.items():
+        if count > 1:
+            rep.warn(flow_id, f"{count} senaryoda kullanılıyor; aynı akış aynı tür sonuçla bitiyorsa farklı veriler tek senaryonun veri satırı olur")
+    flows = [i for i in doc["coverage_items"] if i["technique"] == "use_case_based"]
+    if scenarios and not any(f.get("flow_type") == "main" for f in flows):
+        rep.warn("kapsam öğeleri", "ana akış (UC, flow_type: main) yok")
     if doc["feature"].get("background"):
         check_steps(doc["feature"]["background"], "feature.background", rep, False, is_background=True)
     for sc in scenarios:
@@ -407,11 +432,11 @@ def render_steps(steps, indent, values=None):
             for s in steps]
 
 
-def render_scenario(sc, questions, assumptions, comments=True):
+def render_scenario(sc, questions, assumptions, items, comments=True):
     """Tek senaryonun Gherkin satırları, etiketlerden son adıma kadar.
 
-    comments=False: kaynak, taslak, not, son koşul ve veri yorumları yazılmaz
-    (Jira açıklamasında bunlar ayrı başlıklar altında verilir).
+    comments=False: akış, kaynak, taslak, not, son koşul ve veri yorumları
+    yazılmaz (Jira kartında bunlar ayrı alanlarda verilir).
     """
     draft = sc["status"] == "needs_clarification"
     tags = [f"@{sc['id']}", "@pozitif" if sc["scenario_type"] == "positive" else "@negatif"]
@@ -422,6 +447,8 @@ def render_scenario(sc, questions, assumptions, comments=True):
     outline = len(data_sets) > 1
     out = ["  " + " ".join(tags), f"  {'Senaryo Taslağı' if outline else 'Senaryo'}: {sc['title']}"]
     if comments:
+        for flow in flow_of(sc, items):
+            out.append(f"    # Akış ({tr(flow.get('flow_type', ''))}): {flow['description']}")
         t = sc["traceability"]
         trace = f"# Kaynak: {', '.join(t['basis_ids'])} | {', '.join(t['test_condition_ids'])}"
         if t["coverage_item_ids"]:
@@ -453,6 +480,7 @@ def render_feature(doc, exclude_drafts, rep):
     open_q = [q["id"] for q in doc["readiness"]["clarification_questions"]]
     questions = {q["id"]: q for q in doc["readiness"]["clarification_questions"]}
     assumptions = {a["id"]: a for a in doc["assumptions"]}
+    items = {i["id"]: i for i in doc["coverage_items"]}
     status_line = f"# Kart durumu: {doc['readiness']['status']}"
     if open_q:
         status_line += f" | Açık sorular: {', '.join(open_q)}"
@@ -476,7 +504,7 @@ def render_feature(doc, exclude_drafts, rep):
         if sc["status"] == "needs_clarification" and exclude_drafts:
             rep.warn(sc["id"], "taslak senaryo --exclude-drafts nedeniyle üretilmedi")
             continue
-        out += [""] + render_scenario(sc, questions, assumptions)
+        out += [""] + render_scenario(sc, questions, assumptions, items)
         rendered += 1
     if not rendered:
         out += ["", f"  # Üretilecek senaryo yok (kart durumu: {doc['readiness']['status']}). Yeterlilik raporuna bakın."]
@@ -550,6 +578,13 @@ def render_report(doc):
         out += md_table(["Kaynak", "Tür", "Durum", "Not"],
                         [[l["key"], l["link_type"], tr(l["status"]), l["note"]] for l in inv["linked_issues"]]
                         + [[l["name"], "dış bağlantı", tr(l["status"]), l["note"]] for l in inv["external_links"]])
+    items = {i["id"]: i for i in doc["coverage_items"]}
+    flows = [i for i in doc["coverage_items"] if i["technique"] == "use_case_based"]
+    if flows:
+        out += ["", "## Uçtan uca akışlar", ""]
+        out += md_table(["Akış", "Tür", "Başlangıçtan sonuca", "Senaryo"],
+                        [[f["id"], tr(f.get("flow_type", "")), f["description"],
+                          ", ".join(s["id"] for s in scenarios if f in flow_of(s, items)) or "—"] for f in flows])
     out += ["", "## Kapsam", ""]
     out += md_table(["Öğe", "Senaryolar", "Durum", "Not"],
                     [[b["basis_id"], ", ".join(b["scenario_ids"]) or "—", tr(b["status"]), b.get("note", "")]
@@ -603,13 +638,14 @@ def render_selection(doc, previous, rep):
     """
     src = doc["source"]
     scenarios = execution_order(doc["test_scenarios"])
+    items = {i["id"]: i for i in doc["coverage_items"]}
     out = [
         f"# Jira'ya aktarılacak senaryolar — {src['jira_key']}",
         "",
         f"**Kart:** {src['summary']}",
         "",
-        "Jira'ya Test kaydı olarak eklenecek senaryoların kutusunu işaretleyin (`[x]`),",
-        "eklenmeyecekleri boş bırakın (`[ ]`). Taslak senaryolar bloklayıcı soru",
+        "Test Senaryosu kartına dönüştürülecek senaryoların kutusunu işaretleyin (`[x]`),",
+        "dönüştürülmeyecekleri boş bırakın (`[ ]`). Taslak senaryolar bloklayıcı soru",
         "yanıtlanana kadar işaretsiz gelir. Sıra koşum sırasıdır: önce `@smoke`, sonra",
         "risk seviyesi.",
         "",
@@ -629,7 +665,8 @@ def render_selection(doc, previous, rep):
         selected += checked
         status = f"taslak ({', '.join(sc.get('open_question_ids', []))})" if draft else "hazır"
         tags = "".join(f" · {t}" for t in sc.get("tags", []))
-        out.append(f"- [{'x' if checked else ' '}] {n}. {sc['id']} · {tr(sc['priority'])} · "
+        flow = "".join(f" · {tr(f.get('flow_type', ''))}" for f in flow_of(sc, items))
+        out.append(f"- [{'x' if checked else ' '}] {n}. {sc['id']}{flow} · {tr(sc['priority'])} · "
                    f"{tr(sc['scenario_type'])} · {status}{tags} — {sc['title']}")
     for sid in sorted(set(previous) - {s["id"] for s in scenarios}):
         rep.warn(f"seçim {sid}", "JSON'da artık yok; listeden çıkarıldı")

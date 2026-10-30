@@ -1,26 +1,44 @@
 ---
 name: scenario-generator
-description: Jira kartının (story, task, bug) kullanıcının paylaştığı XML dışa aktarımından ISTQB tabanlı manuel test senaryoları üretir ve Türkçe Gherkin ile yazar. Jira'ya bağlanmaz, ek indirmez. XML'deki tüm alanları (açıklama, kabul kriterleri, ortam, yorumlar, ek listesi, bağlı kartlar, özel alanlar) okur, kartın senaryo üretmeye yeterli olup olmadığını değerlendirir, eksik ve çelişkili bilgiler için soru üretir. Çıktı references/output-schema.json formatında tek bir JSON'dur; .feature dosyası, kart yeterlilik raporu ve seçim listesi scripts/render_gherkin.py ile oluşturulur; kullanıcının seçtiği senaryolar scripts/jira_export.py ile Jira Test kaydı CSV'sine aktarılır. Jira XML'i, kart içeriği veya kullanıcı hikâyesi verilip test senaryosu, test case, test durumu ya da Gherkin/feature istendiğinde kullan.
+description: Jira kartının (story, task, cross-functional, bug) kullanıcının paylaştığı XML dışa aktarımından uçtan uca manuel test senaryoları üretir ve Türkçe Gherkin ile yazar. Önce karttaki iş akışlarını (ana, alternatif, hata) çıkarır, her akış için girişten sonuca bir senaryo yazar; sınır değer, denklik sınıfı gibi ISTQB teknikleri akışların veri satırlarını üretir. Jira'ya bağlanmaz, ek indirmez. Kartın yeterliliğini değerlendirir, eksik ve çelişkili bilgiler için soru üretir. Çıktı references/output-schema.json formatında tek bir JSON'dur; .feature dosyası, kart yeterlilik raporu ve seçim listesi scripts/render_gherkin.py ile oluşturulur; kullanıcının işaretlediği senaryolar scripts/jira_export.py ile karta bağlanacak Test Senaryosu kartlarına (Jira CSV) dönüştürülür. Jira XML'i, kart içeriği veya kullanıcı hikâyesi verilip test senaryosu, test case, test durumu ya da Gherkin/feature istendiğinde kullan.
 ---
 
 # Scenario Generator
 
 Jira kartını **test esası** (test basis) kabul eder ve ISTQB test sürecinin
-analiz → tasarım → uygulama adımlarını izleyerek **manuel test senaryoları**
-üretir.
+analiz → tasarım → uygulama adımlarını izleyerek **uçtan uca manuel test
+senaryoları** üretir. Senaryonun nasıl kurulduğu
+`references/scenario-construction.md`'dedir.
+
+## Uçtan uca süreç
+
+Kullanıcı "test senaryosu oluştur" deyip kartın XML'ini verdiğinde Adım 1–8
+arada onay istenmeden uygulanır; Adım 9'da kullanıcıya hangi senaryoların
+Test Senaryosu kartına dönüştürüleceği sorulur ve seçilenlerden Jira dosyası
+üretilir.
+
+```text
+XML → kart envanteri ve yeterlilik → test esası ve koşullar → akışlar (UC)
+    → teknikler (veri satırları) → her akış için uçtan uca senaryo → JSON
+    → .feature + rapor + seçim listesi → kullanıcı seçer → Test Senaryosu kartları (CSV)
+```
+
+Süreç yalnızca üç yerde durur: XML verilmediyse (XML istenir), kart
+`not_ready` ise (rapor ve sorular verilir, senaryo yazılmaz) ve Adım 9'daki
+seçim sorusunda.
 
 - **Girdi:** kullanıcının paylaştığı Jira XML dışa aktarımı (kart → Dışa
   aktar → XML). Alanlar, yorumlar, ek listesi ve bağlı kart anahtarları
   buradan okunur. Jira'ya bağlanılmaz, ekler indirilmez; XML'de olmayan bilgi
   `not_provided` olarak kaydedilir (`card-analysis-rules.md` §9).
 - **Agent'ın çıktısı:** tek bir JSON belgesi. Kart envanteri, yeterlilik,
-  test esası, çelişkiler, senaryolar ve kapsam burada tutulur. Senaryo
-  adımları Türkçe Gherkin cümleleridir.
+  test esası, çelişkiler, akışlar, senaryolar ve kapsam burada tutulur.
+  Senaryo adımları Türkçe Gherkin cümleleridir.
 - **Script'in çıktıları:** `.feature` dosyası (test uzmanı için), kart
-  yeterlilik raporu (ürün sahibi / analist için) ve Jira'ya aktarılacak
-  senaryoların seçim listesi. Kullanıcının işaretlediği senaryolar
-  `jira_export.py` ile Jira CSV'sine yazılır; her biri kaynak kartla
-  ilişkilendirilecek bir Test kaydıdır.
+  yeterlilik raporu (ürün sahibi / analist için) ve seçim listesi.
+  Kullanıcının işaretlediği senaryolar `jira_export.py` ile Jira CSV'sine
+  yazılır; her biri kaynak karta bağlantıyla bağlanacak bir **Test Senaryosu**
+  kartıdır.
 
 Adım kalıpları için şu an kurumsal bir standart yoktur; Gherkin cümleleri
 serbesttir ve `gherkin-format-rules.md`'deki okunabilirlik kurallarına uyar.
@@ -30,6 +48,7 @@ serbesttir ve `gherkin-format-rules.md`'deki okunabilirlik kurallarına uyar.
 | Dosya | Ne zaman okunur |
 |---|---|
 | `references/card-analysis-rules.md` | Adım 1–2'de: hangi alanın nasıl okunacağı, XML eşlemesi (§9), ekler, kaynak gösterme, çelişki kuralları, R1–R10 |
+| `references/scenario-construction.md` | Adım 4–5'te: **test senaryosu nasıl oluşturulur** — akışları çıkarma, teknikleri akışlara bağlama, uçtan uca senaryoyu yazma |
 | `references/test-design-rules.md` | Adım 3–5'te: risk, test derinliği, teknik seçimi, teknikler, senaryo yazım kuralları |
 | `references/gherkin-format-rules.md` | Adım 5'te: Gherkin anahtar kelimeleri, cümle yazımı, Örnekler, Geçmiş |
 | `references/output-schema.json` | Adım 6–8'de: çıktının tek geçerli formatı |
@@ -105,42 +124,56 @@ soru `blocking: true` olur.
 4. Her koşul için risk: olasılık (1–3) × etki (1–3). Jira önceliği etki
    puanına girdidir. Seviye eşlemesi `test-design-rules.md` §3'te.
 
-### Adım 4: Test tasarımı
+### Adım 4: Test tasarımı — akışlar ve kapsam öğeleri
 
-1. Her koşula `test-design-rules.md` §2'ye göre teknik ata. Her koşulda en az
+1. **Akışları çıkar** (`scenario-construction.md` §2): kartın ana akışı,
+   kartta tanımlı alternatif akışlar ve kartta tanımlı her red veya uyarı
+   davranışı için bir hata akışı. Her akış bir `UC` kapsam öğesidir
+   (`technique: use_case_based`, `flow_type`: `main`, `alternative` veya
+   `exception`); `description` akışı "Giriş → … → Sonuç" biçiminde özetler.
+   Sonucu kartta tanımlı olmayan akış için soru yazılır.
+2. Her koşula `test-design-rules.md` §2'ye göre teknik ata. Her koşulda en az
    bir teknik; her kartta hata tahmini.
-2. Risk seviyesine göre derinliği `test-design-rules.md` §3'teki tablodan al.
-3. Kapsam öğelerini çıkar: denklik sınıfları, sınır değerler, karar tablosu
+3. Risk seviyesine göre derinliği `test-design-rules.md` §3'teki tablodan al.
+4. Kapsam öğelerini çıkar: denklik sınıfları, sınır değerler, karar tablosu
    kuralları, durum geçişleri, hata tahminleri.
-4. Kapsam öğelerini senaryolara dönüştür. Hedef: her kapsam öğesi en az bir
-   senaryoda. Kapsanamayan öğe gerekçesiyle `uncovered_items` içine yazılır.
+5. **Kapsam öğelerini akışlara yerleştir** (`scenario-construction.md` §3):
+   geçerli değerler ana veya alternatif akışın, geçersiz değerler
+   tetikledikleri hata akışının veri satırı olur. Hedef: her kapsam öğesi bir
+   senaryoda; kapsanamayan öğe gerekçesiyle `uncovered_items` içine yazılır.
 
-**Senaryo sayısı sabit değildir.** Kategori kotası veya dağılım hedefi
-uygulanmaz; sayı kapsam öğelerinden ve risk derinliğinden çıkar.
+**Senaryo sayısı akış sayısıdır.** Kategori kotası veya dağılım hedefi
+uygulanmaz; koşum sayısı veri satırlarından ve risk derinliğinden çıkar.
 
-### Adım 5: Senaryoları Gherkin ile yaz
+### Adım 5: Her akış için uçtan uca senaryo yaz
 
-`gherkin-format-rules.md` ve `test-design-rules.md` §5'e göre:
+`scenario-construction.md` §4, `gherkin-format-rules.md` ve
+`test-design-rules.md` §5'e göre:
 
 - `feature` alanına Özellik adını, etiketleri ve tüm senaryolarda ortak ön
-  koşulları (`background`) yaz.
-- Her senaryonun adımlarını `Diyelim ki` → `Eğer ki` → `O zaman` sırasıyla,
-  test uzmanının tek başına uygulayabileceği somutlukta yaz.
-- Ekran ve alan adlarını kartta veya ekteki tasarımda geçtiği gibi kullan.
-- Beklenen mesajları tırnak içinde, kaynaktaki haliyle yaz.
-- Farklı verilerle tekrarlanan senaryoda değerleri `<parametre>` ile yaz ve
-  veri setlerine koy.
-- Senaryo kalıcı bir değişiklik bırakıyorsa (para hareketi, kayıt, durum
+  koşulları (`background`: giriş, ekrana gitme) yaz.
+- Her akış için bir senaryo yaz. Geçmiş ve senaryo adımları birlikte
+  kullanıcının giriş noktasından başlar ve akışın sonucunda biter. Senaryo,
+  `coverage_item_ids` içinde tam bir `UC` öğesine bağlıdır.
+- Adımları test uzmanının tek başına uygulayabileceği somutlukta yaz: ön
+  koşullar (`Diyelim ki`), sıradaki her kullanıcı eylemi (`Eğer ki` / `Ve`),
+  kartta tanımlı ara ve son doğrulamalar (`O zaman`).
+- Başarı akışında sonucu ve kartta tanımlı sonraki etkileri, hata akışında
+  hata mesajını ve işlemin gerçekleşmediğini doğrula.
+- Ekran ve alan adlarını kartta geçtiği gibi, beklenen mesajları tırnak
+  içinde ve kaynaktaki haliyle yaz.
+- Akışın değişen değerlerini `<parametre>` ile yaz ve veri satırlarına koy.
+- Akış kalıcı bir değişiklik bırakıyorsa (para hareketi, kayıt, durum
   değişikliği) `postconditions` alanına bıraktığı durumu ve temizliği yaz
   (`test-design-rules.md` §5 madde 13).
-- Duman testi senaryolarını `test-design-rules.md` §3'teki sorularla seç ve
-  `@smoke` etiketiyle işaretle.
+- Duman testini `test-design-rules.md` §3'teki sorularla seç ve `@smoke`
+  etiketiyle işaretle; çoğunlukla ana akıştır.
 
 ### Adım 6: Kapsam özeti
 
 `coverage_summary` alanını doldur: her `AC` ve `BR` öğesinin hangi
-senaryolarla kapsandığı, teknik bazında kapsam yüzdesi, kapsanamayan öğeler ve
-senaryo sayıları.
+senaryolarla kapsandığı, teknik bazında kapsam yüzdesi (akışlar
+`use_case_based` satırındadır), kapsanamayan öğeler ve senaryo sayıları.
 
 ### Adım 7: Öz denetim
 
@@ -151,6 +184,9 @@ senaryo sayıları.
 - [ ] Her çelişki kayıtlı; çözülmemiş olanların sorusu var
 - [ ] R7, R9, R10 sonuçları envanter ve çelişkilerle tutarlı
 - [ ] JSON, `output-schema.json` ile geçerli
+- [ ] Kartın bir ana akışı ve kartta tanımlı her red/uyarı davranışı için bir hata akışı (`UC`) var
+- [ ] Her senaryo tam bir `UC` akışına bağlı; aynı akış iki senaryoda değil
+- [ ] Her senaryo (Geçmiş dâhil) giriş noktasından başlıyor ve akışın sonucunda bitiyor
 - [ ] Her senaryo en az bir test esası öğesine ve bir test koşuluna bağlı
 - [ ] Her kapsam öğesi bir senaryoda veya `uncovered_items` içinde
 - [ ] Her `AC` ve `BR` öğesi `coverage_summary.basis` içinde
@@ -183,21 +219,24 @@ belgesini (ve üretildiyse `.feature`, rapor ve seçim listesini) döndür; ön�
 veya arkasında açıklama metni olmaz ve Adım 9 uygulanmaz. Kullanıcıyla
 konuşuyorsan Adım 9'a geç.
 
-### Adım 9: Jira'ya aktarılacak senaryoların seçimi
+### Adım 9: Seçim ve Test Senaryosu kartlarına dönüştürme
 
-Hangi senaryonun Jira'ya Test kaydı olarak ekleneceğine **kullanıcı karar
-verir.** Seçim listesi (`cikti-secim.md`) bu kararın tek kaydıdır:
+Hangi senaryonun Jira'da **Test Senaryosu kartına** dönüştürüleceğine
+**kullanıcı karar verir.** Seçim listesi (`cikti-secim.md`) bu kararın tek
+kaydıdır:
 
 ```text
-- [x] 1. TS-ESUBE-2041-001 · yüksek · pozitif · hazır · @smoke — Geçerli bilgilerle …
-- [ ] 5. TS-ESUBE-2041-006 · yüksek · negatif · taslak (Q-01) — IBAN 26 karakterden uzun …
+- [x] 1. TS-ESUBE-2041-001 · ana akış · yüksek · pozitif · hazır · @smoke — Geçerli bilgilerle …
+- [ ] 5. TS-ESUBE-2041-006 · hata akışı · yüksek · negatif · taslak (Q-01) — IBAN 26 karakterden uzun …
 ```
 
 1. Script listeyi koşum sırasıyla üretir: önce `@smoke`, sonra risk seviyesi.
    Hazır senaryolar işaretli, taslak senaryolar işaretsiz gelir. Bu yalnızca
    başlangıç önerisidir.
-2. Listeyi kullanıcıya numaralarıyla göster ve hangilerinin ekleneceğini sor.
-   Kullanıcı dosyadaki kutuları kendisi de işaretleyebilir.
+2. Listeyi kullanıcıya numaralarıyla göster ve hangilerinin Test Senaryosu
+   kartına dönüştürüleceğini sor. Kullanıcı dosyadaki kutuları kendisi de
+   işaretleyebilir. Kullanıcı seçimini isteğinde zaten söylediyse ("hepsini
+   aktar", "taslak olmayanları aktar") sormadan uygula.
 3. Kullanıcının yanıtını ("3 ve 7'yi ekleme", "yalnızca smoke olanlar")
    listedeki `[x]` / `[ ]` işaretlerine uygula. Başka hiçbir satırı değiştirme;
    kullanıcının söylemediği bir senaryonun işaretini değiştirme. Yanıt
@@ -210,23 +249,46 @@ verir.** Seçim listesi (`cikti-secim.md`) bu kararın tek kaydıdır:
    python <skill-klasörü>/scripts/jira_export.py cikti.json cikti-secim.md cikti-jira.csv
    ```
 
-   Kurumda Test kaydının adı farklıysa `--issue-type "<ad>"` ekle. Script,
-   liste JSON'la uyuşmuyorsa (başka karta ait satır, değişmiş başlık, tekrar
-   eden satır) veya hiç işaret yoksa dosya üretmez; listeyi yeniden üret ya
-   da kullanıcıya sor.
+   Kart türü varsayılan olarak `Test Senaryosu`dur; kurumda adı farklıysa
+   `--issue-type "<ad>"` ekle. Script, liste JSON'la uyuşmuyorsa (başka karta
+   ait satır, değişmiş başlık, tekrar eden satır) veya hiç işaret yoksa dosya
+   üretmez; listeyi yeniden üret ya da kullanıcıya sor.
 
 Kart güncellenip JSON yeniden üretildiğinde aynı `--selection` yolu verilir:
 kullanıcının işaretleri korunur. Yalnızca yeni senaryolar ve başlığı değişen
 senaryolar varsayılana döner; script bunları uyarı olarak yazar.
 
+**CSV'deki her satır bir Test Senaryosu kartıdır:**
+
+| Sütun | İçerik |
+|---|---|
+| `Summary` | `[TS-…] <başlık>` |
+| `Issue Type` | `Test Senaryosu` |
+| `Priority` | Risk seviyesinden: kritik → Highest, yüksek → High, orta → Medium, düşük → Low |
+| `Kaynak Kart` | Senaryonun üretildiği kartın anahtarı (bağlantı için) |
+| `Akış` | ana akış / alternatif akış / hata akışı |
+| `Ön Koşullar` | Geçmiş ve `Diyelim ki` adımları, numaralı |
+| `Test Adımları` | Eylem ve doğrulama adımları sırasıyla, numaralı (uçtan uca) |
+| `Beklenen Sonuç` | `O zaman` adımları, numaralı |
+| `Test Verisi` | Veri satırları tablosu (birden fazla satırda) veya tek satırın değerleri |
+| `Description` | Amaç, akış, öncelik, teknik, izlenebilirlik, test ortamı, Geçmiş dâhil tam Gherkin, son koşullar, notlar, açık sorular |
+| `Labels` | Özellik ve senaryo etiketleri, akış türü (`ana-akis`, `alternatif-akis`, `hata-akisi`), `pozitif`/`negatif`, `taslak`, kaynak kart anahtarı |
+
 **CSV'nin Jira'ya yüklenmesi** (kullanıcı yapar; agent Jira'ya bağlanmaz):
-Jira'nın CSV içe aktarımında (Issues → Import issues from CSV) kodlama UTF-8
-seçilir; `Summary`, `Issue Type`, `Priority`, `Description` ve `Labels`
-sütunları aynı adlı alanlara eşlenir. `Kaynak Kart` sütunu, test kaydının
-kartla kurumdaki ilişkisine eşlenir: kayıt kartın alt kaydıysa üst kayıt
-(Parent), bağlantıysa ilgili bağlantı türü (ör. "tests" veya "relates to").
-Öncelik adları Jira'nın varsayılanlarıdır (Highest, High, Medium, Low); kurumda
-farklıysa sihirbazın değer eşlemesinde düzeltilir.
+
+1. Jira'nın CSV içe aktarımını açın (Issues → Import issues from CSV), kodlama
+   olarak UTF-8 seçin, kartların açılacağı projeyi seçin.
+2. `Summary`, `Issue Type`, `Priority`, `Description` ve `Labels` sütunlarını
+   aynı adlı alanlara eşleyin.
+3. Test Senaryosu kartınızda Ön Koşullar, Test Adımları, Beklenen Sonuç veya
+   Test Verisi alanları varsa ilgili sütunları onlara eşleyin; yoksa eşlemeden
+   bırakın — aynı içerik Description'da da vardır.
+4. `Kaynak Kart` sütununu, Test Senaryosu kartının kaynak karta bağlandığı
+   bağlantı türüne eşleyin (Link "…"). Sihirbaz bağlantı eşlemesi sunmazsa
+   sütunu boş bırakın; kartlar kaynak kart anahtarı etiketiyle bulunup
+   bağlanabilir.
+5. Öncelik adları Jira'nın varsayılanlarıdır (Highest, High, Medium, Low);
+   kurumda farklıysa sihirbazın değer eşlemesinde düzeltin.
 
 ## Zorunlu kurallar
 
@@ -248,8 +310,10 @@ farklıysa sihirbazın değer eşlemesinde düzeltilir.
    ihlal edildiği durum test edilir.
 8. **Geçersiz değerler tek tek test edilir.** Bir veri setinde birden fazla
    geçersiz değer birleştirilmez.
-9. **Bir senaryo, tek davranış.** Farklı beklenen sonuçlar ayrı senaryolardır;
-   aynı adımlar ve aynı türde sonuç için farklı veriler veri seti olur.
+9. **Bir senaryo, bir uçtan uca akış.** Senaryo giriş noktasından başlar,
+   akışın sonucunda ve kartta tanımlı sonraki etkilerde biter. Farklı sonuçla
+   biten akışlar (ana, alternatif, hata) ayrı senaryolardır; aynı akışı aynı
+   tür sonuçla izleyen farklı veriler veri satırı olur.
 10. **Sabit sayı yok.** Senaryo sayısı veya kategori dağılımı hedeflenmez.
 11. **Kapsam sınırları.** Fonksiyonel olmayan senaryo yalnızca kart ölçülebilir
     bir gereksinim içeriyorsa üretilir; yoksa `out_of_scope` içine yazılır.
@@ -269,11 +333,12 @@ farklıysa sihirbazın değer eşlemesinde düzeltilir.
 ## Bug kartları (değişiklikle ilgili test)
 
 - **Doğrulama testi** (confirmation test): yeniden üretme adımları (açıklama,
-  video, log) izlenir; beklenen sonuç düzeltilmiş davranıştır. Etiket:
-  `@confirmation`.
+  video, log) uçtan uca akış olarak izlenir; bu akış kartın ana akışıdır ve
+  beklenen sonuç düzeltilmiş davranıştır. Etiket: `@confirmation`.
 - **Regresyon testleri**: hatanın dokunduğu komşu akışlar (bağlı kartlar,
   bileşenler) için, değişikliğin mevcut davranışı bozmadığını doğrulayan
-  senaryolar. Etiket: `@regression`.
+  uçtan uca senaryolar; her biri bir alternatif akıştır. Etiket:
+  `@regression`.
 - Ortam ve etkilenen sürüm, `test_environment` içine ve gerekiyorsa
   `Diyelim ki` adımına yazılır.
 
@@ -286,10 +351,13 @@ farklıysa sihirbazın değer eşlemesinde düzeltilir.
 | Yorum | `C-NN` | `C-02` |
 | Çelişki | `CF-NN` | `CF-01` |
 | Test koşulu | `COND-NN` | `COND-02` |
+| Akış (kapsam öğesi) | `UC-ANA`, `UC-ALT-<AD>`, `UC-HATA-<AD>` | `UC-HATA-LIMIT` |
 | Kapsam öğesi | `<TEKNİK>-<ALAN>-<DEĞER>` | `EP-IBAN-I1`, `BVA-AMT-0.99` |
 | Senaryo | `TS-<JIRA_KEY>-NNN` | `TS-ESUBE-2041-003` |
 | Veri seti | `DS-NN` | `DS-01` |
 | Soru / varsayım | `Q-NN` / `A-NN` | `Q-02`, `A-01` |
 
-Teknik ön ekleri: `EP` denklik sınıfı, `BVA` sınır değer, `DT` karar tablosu,
-`ST` durum geçişi, `EG` hata tahmini, `CL` kontrol listesi.
+Teknik ön ekleri: `UC` uçtan uca akış, `EP` denklik sınıfı, `BVA` sınır
+değer, `DT` karar tablosu, `ST` durum geçişi, `EG` hata tahmini, `CL` kontrol
+listesi. ID'lerde yalnızca büyük ASCII harf, rakam, `.`, `_` ve `-` kullanılır
+(`UC-HATA-IBANUZUN`; Türkçe karakter yok).
