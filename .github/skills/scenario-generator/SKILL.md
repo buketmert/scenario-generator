@@ -12,18 +12,24 @@ senaryoları** üretir. Senaryonun nasıl kurulduğu
 
 ## Uçtan uca süreç
 
-Kullanıcı "test senaryosu oluştur" deyip kartın XML'ini verdiğinde adımlar
-arada onay istenmeden uygulanır. Mekanik işi script'ler yapar; LLM yalnızca
-muhakeme gerektiren kısmı (yeterlilik, akışlar, senaryolar) yazar.
+**Giriş:** VS Code sohbetinde `/senaryo-uret <XML dosyasının yolu>`
+(`.github/prompts/senaryo-uret.prompt.md`). Komut `Senaryo Üretici`
+agent'ını kendisi seçer; agent seçmek gerekmez. Soru sormadan üretmek için
+`/hizli-senaryo-uret`. XML'i sohbete ek olarak eklemek yerine çalışma alanına
+kaydedip yolunu yazmak daha hızlıdır: ek, ham XML'i bağlama koyar.
+
+Adımlar arada onay istenmeden uygulanır. Mekanik işi script'ler yapar; LLM
+yalnızca muhakeme gerektiren kısmı (yeterlilik, akışlar, senaryolar) yazar.
+Yerel modelde her araç çağrısı bağlamın tamamını yeniden işlediği için akış
+dört araç çağrısına indirilmiştir:
 
 ```text
-XML ──parse_jira_xml.py──> <KEY>-kart.md + <KEY>-kart.json          (LLM'siz, saniyeler)
-     → LLM: yeterlilik, test esası, akışlar → çoktan seçmeli sorular (tek tur)
-     → LLM: yalın <KEY>.json (bir kerede)
-     ──render_gherkin.py --all──> tamamlar + doğrular → .feature, rapor, seçim listesi
-     ──secim_sunucu.py──> seçim ekranı tarayıcıda açılır (yerel sunucu)
-     → kullanıcı işaretler → "Jira'da aç" → jira_create.py → Test Senaryosu kartları,
-        kaynak karta bağlı
+1  parse_jira_xml.py --yazdir   → kart metni + JSON yazım kılavuzu tek çıktıda   (LLM'siz)
+2  (gerekirse) çoktan seçmeli sorular, tek tur
+3  yalın <KEY>.json, bir kerede
+4  render_gherkin.py --all --sunucu --open → tamamlar + doğrular → .feature, rapor,
+   seçim listesi; seçim sunucusu arka planda başlar, ekran tarayıcıda açılır
+→ kullanıcı işaretler → "Jira'da aç" → jira_create.py → Test Senaryosu kartları, kaynak karta bağlı
 ```
 
 Jira'ya LLM bağlanmaz; kartları kullanıcı düğmeye bastığında `jira_create.py`
@@ -63,7 +69,8 @@ serbesttir ve `gherkin-format-rules.md`'deki okunabilirlik kurallarına uyar.
 | `references/gherkin-format-rules.md` | Adım 5'te: Gherkin anahtar kelimeleri, cümle yazımı, Örnekler, Geçmiş |
 | `references/output-schema.json` | Okunmaz; script doğrulamada kullanır |
 | `scripts/render_gherkin.py` | Adım 8'de çalıştırılır: JSON'u tamamlar ve doğrular; `.feature`, rapor, seçim listesi ve durağan seçim ekranı (`scripts/selection_page.py`) üretir |
-| `scripts/secim_sunucu.py` | Adım 9'da arka planda çalıştırılır: seçim ekranını "Jira'da aç" düğmesiyle açar |
+| `scripts/secim_sunucu.py` | Adım 8'de `render_gherkin.py --sunucu` başlatır: seçim ekranını "Jira'da aç" düğmesiyle sunar |
+| `.github/prompts/senaryo-uret.prompt.md`, `hizli-senaryo-uret.prompt.md` | Giriş komutları: `/senaryo-uret`, `/hizli-senaryo-uret`; doğru agent'ı seçer |
 | `scripts/jira_create.py` | Kartları açar (ekrandaki düğme onu çağırır); `--kesfet` ile Jira'yı tanıyıp ayar önerir |
 | `examples/jira-ayar.ornek.json` | Jira ayar dosyası örneği (`test-scenarios/jira-ayar.json`) |
 | `examples/ESUBE-2041.xml` → `examples/ESUBE-2041/` | Uçtan uca örnek: girdi XML ve agent'ın ürettiği her dosya (yalın JSON, kart dosyaları, `.feature`, rapor, seçim listesi ve ekranı). Q-01 çoktan seçmeli yanıtlanmıştır. İçeriği kopyalanmaz |
@@ -73,11 +80,13 @@ serbesttir ve `gherkin-format-rules.md`'deki okunabilirlik kurallarına uyar.
 ### Adım 1: XML'i ayrıştır ve kartı oku
 
 ```bash
-python <skill-klasörü>/scripts/parse_jira_xml.py <kart.xml> --out-dir test-scenarios
+python <skill-klasörü>/scripts/parse_jira_xml.py <kart.xml> --out-dir test-scenarios --yazdir
 ```
 
-XML sohbete yapıştırıldıysa önce bir dosyaya (`test-scenarios/_girdi.xml`)
-yazılır. Script her kart için `test-scenarios/<KEY>/` altına iki dosya yazar:
+XML sohbete yapıştırıldıysa önce bir dosyaya (`test-scenarios/girdi/_girdi.xml`)
+yazılır. Script her kart için `test-scenarios/<KEY>/` altına iki dosya yazar;
+`--yazdir` ile kart metnini ve `references/output-template.md`'yi çıktıya da
+basar, böylece ayrı okuma turu gerekmez:
 
 - `<KEY>-kart.md` — okunacak olan. HTML çözülmüş açıklama, `AC-NN`
   numaralı kabul kriterleri, `C-NN` numaralı yorumlar (eskiden yeniye), ek
@@ -262,26 +271,28 @@ JSON'u `test-scenarios/<KEY>/<KEY>.json` olarak **bir kerede** yaz ve çalışt�
 (yol skill klasörüne göredir; VS Code'da `.github/skills/scenario-generator/`):
 
 ```bash
-python <skill-klasörü>/scripts/render_gherkin.py test-scenarios/<KEY>/<KEY>.json --all
+python <skill-klasörü>/scripts/render_gherkin.py test-scenarios/<KEY>/<KEY>.json --all --sunucu --open
 ```
 
 Script `<KEY>-kart.json`'u bulur, JSON'u tamamlar ve doğrular, yanına
 `<KEY>.feature`, `<KEY>-rapor.md`, `<KEY>-secim.md` ve `<KEY>-secim.html`
-(durağan seçim ekranı) yazar. `[HATA]` varsa yalnızca gösterilen yeri düzelt
-ve komutu yeniden çalıştır; hesaplanan alanlardaki farklar uyarıdır ve JSON'un
-yeniden yazılmasını gerektirmez. Kod çalıştıramıyorsan yalnızca JSON'u döndür.
+(durağan seçim ekranı) yazar. `--sunucu` seçim sunucusunu (`secim_sunucu.py`)
+bağımsız bir süreç olarak başlatır ve adresini yazar; komut hemen döner,
+terminal sunucuyu beklemez (günlük: `<KEY>-sunucu.log`; sunucu 60 dk işlem
+olmazsa kapanır). `--open` ekranı tarayıcıda açar.
 
-Kullanıcıyla konuşmadan (pipeline'da) çalışıyorsan yanıt olarak yalnızca
-dosya yolları döner ve Adım 9 uygulanmaz.
+`[HATA]` varsa yalnızca gösterilen yeri düzelt ve komutu yeniden çalıştır;
+hesaplanan alanlardaki farklar uyarıdır ve JSON'un yeniden yazılmasını
+gerektirmez. Kod çalıştıramıyorsan yalnızca JSON'u döndür.
+
+Kullanıcıyla konuşmadan (pipeline'da) çalışıyorsan `--sunucu --open`
+kullanılmaz; yanıt olarak yalnızca dosya yolları döner ve Adım 9 uygulanmaz.
 
 ### Adım 9: Ekrandan seçim ve Jira'da açma
 
-Seçim sunucusunu **arka planda** başlat (terminal kapanmasın; sunucu 60 dk
-işlem olmazsa kendiliğinden kapanır):
-
-```bash
-python <skill-klasörü>/scripts/secim_sunucu.py test-scenarios/<KEY>/<KEY>.json
-```
+Seçim sunucusu Adım 8'de başladı. Ayrıca başlatmak gerekirse:
+`python <skill-klasörü>/scripts/secim_sunucu.py test-scenarios/<KEY>/<KEY>.json`
+(bu komut sunucu kapanana kadar döner; arka planda çalıştırılmalıdır).
 
 Hangi senaryonun Jira'da **Test Senaryosu kartı** olacağına **kullanıcı karar
 verir**, açılan ekranda:

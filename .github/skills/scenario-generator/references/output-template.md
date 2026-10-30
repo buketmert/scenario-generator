@@ -14,6 +14,8 @@ alanları** yaz. Gerisini `render_gherkin.py` doldurur ve denetler. Bu dosya
 | Yorumların `author` ve `date` alanları | `<KEY>-kart.json` |
 | Kabul kriteri alanındaki `AC-NN` metinleri | `<KEY>-kart.json`; metni tekrar yazma, yalnızca değişen alanı yaz (ör. `testability`) |
 | `generated_at`, `readiness.status`, `checks[].criterion` | Hesaplanır |
+| R7, R9, R10 kontrolleri | Yazmazsan çelişkilerden, test ortamından ve envanterden hesaplanır (en fazla `partial`). Kural yalnızca okunamayan bir ekte duruyorsa R10'u `fail` olarak kendin yaz |
+| `pass` kontrollerin `finding` alanı | Yazmazsan "—"; `partial` ve `fail` için bulgu zorunlu |
 | `test_conditions[].risk.level` | olasılık × etki |
 | `test_scenarios[].priority`, `status` | Bağlı koşulların riski; açık bloklayıcı soru varsa `needs_clarification` |
 | `coverage_summary` | Senaryolardan hesaplanır. Yalnızca kapsanmayan öğe varsa gerekçesini yaz |
@@ -82,8 +84,8 @@ verilir; JSON'u bunun için yeniden yazma.
 }
 ```
 
-`readiness.checks` R1–R10'un **hepsini** içerir (örnekte yalnızca R1
-gösterildi).
+`readiness.checks` R1–R6 ve R8'i içerir (örnekte yalnızca R1 gösterildi);
+R7, R9, R10'u yalnızca hesaplanandan farklı değerlendiriyorsan yaz.
 
 ## Sorular ve yanıtlar
 

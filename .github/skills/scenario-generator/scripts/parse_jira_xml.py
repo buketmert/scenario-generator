@@ -10,7 +10,13 @@
 
 Jira'ya bağlanmaz; yalnızca verilen dosyayı okur.
 
+--yazdir: kart metnini ve JSON yazım kılavuzunu (references/output-template.md)
+çıktıya da basar. Agent ikisini bu tek araç çağrısının sonucunda alır; ayrı
+okuma turlarına gerek kalmaz (yerel modelde her tur bağlamın tamamını yeniden
+işler).
+
 Kullanım:
+    python scripts/parse_jira_xml.py kart.xml --yazdir           # agent'ın kullandığı biçim
     python scripts/parse_jira_xml.py kart.xml                    # test-scenarios/<KEY>/ altına yazar
     python scripts/parse_jira_xml.py kart.xml --out-dir ciktilar
 
@@ -312,6 +318,8 @@ def main():
     parser.add_argument("xml", help="Jira XML dışa aktarımı")
     parser.add_argument("--out-dir", default="test-scenarios",
                         help="çıktı kökü; her kart <out-dir>/<KEY>/ altına yazılır (varsayılan: test-scenarios)")
+    parser.add_argument("--yazdir", action="store_true",
+                        help="kart metnini ve JSON yazım kılavuzunu çıktıya da bas (agent tek turda okur)")
     args = parser.parse_args()
     try:
         root = ET.parse(args.xml).getroot()
@@ -329,12 +337,18 @@ def main():
             continue
         folder = Path(args.out_dir) / key
         folder.mkdir(parents=True, exist_ok=True)
+        text = render_markdown(key, info, card["test_basis_candidates"])
         (folder / f"{key}-kart.json").write_text(json.dumps(card, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        (folder / f"{key}-kart.md").write_text(render_markdown(key, info, card["test_basis_candidates"]), encoding="utf-8")
+        (folder / f"{key}-kart.md").write_text(text, encoding="utf-8")
         inv = card["card_inventory"]
         print(f"{folder / (key + '-kart.md')}: {len(card['test_basis_candidates'])} kabul kriteri, "
               f"{len(inv['comments'])} yorum, {len(inv['attachments'])} ek, {len(inv['linked_issues'])} bağlı kart",
               file=sys.stderr)
+        if args.yazdir:
+            print(f"===== {folder / (key + '.json')} dosyasına yazılacak kart =====\n\n{text}")
+    if args.yazdir:
+        guide = Path(__file__).resolve().parent.parent / "references" / "output-template.md"
+        print(f"===== JSON yazım kılavuzu ({guide.name}) =====\n\n{guide.read_text(encoding='utf-8')}")
     return 0
 
 

@@ -4,7 +4,8 @@ Türkçe Gherkin (.feature) dosyası, kart yeterlilik raporu (.md), seçim liste
 (.md) ve senaryoların ekrandan seçildiği sayfayı (.html) üretir.
 
 Kullanım:
-    python scripts/render_gherkin.py test-scenarios/KEY/KEY.json --all --open   # hepsi + sayfayı aç
+    python scripts/render_gherkin.py test-scenarios/KEY/KEY.json --all --sunucu --open   # hepsi + Jira'da aç ekranı
+    python scripts/render_gherkin.py test-scenarios/KEY/KEY.json --all --open   # hepsi + durağan ekran
     python scripts/render_gherkin.py cikti.json cikti.feature --report rapor.md --selection secim.md --html secim.html
     python scripts/render_gherkin.py cikti.json --check            # yalnızca doğrula
 
@@ -21,8 +22,14 @@ değişen senaryolar varsayılana (hazır: işaretli, taslak: işaretsiz) döner
 
 import argparse
 import json
+import os
 import re
+import socket
+import subprocess
 import sys
+import time
+import urllib.error
+import urllib.request
 import webbrowser
 from collections import Counter
 from datetime import datetime
@@ -208,9 +215,7 @@ def _complete_derived(doc, rep):
                          if q in questions and questions[q].get("blocking") and not is_answered(questions[q])]
         settle(sc, "status", "needs_clarification" if blocking_open else "ready", sc["id"], "durum")
     rd = doc.get("readiness", {})
-    for c in rd.get("checks", []):
-        if c.get("id") in CHECK_CRITERIA:
-            c.setdefault("criterion", CHECK_CRITERIA[c["id"]])
+    complete_checks(doc, rd)
     checks = {c["id"]: c["result"] for c in rd.get("checks", [])}
     if set(checks) == set(CHECK_IDS):
         if any(checks[r] == "fail" for r in ("R2", "R3", "R7", "R10")):
@@ -221,6 +226,47 @@ def _complete_derived(doc, rep):
             status = "ready"
         settle(rd, "status", status, "readiness", "kart durumu")
     doc["coverage_summary"] = compute_coverage(doc, rep)
+
+
+def inventory_gaps(inv):
+    """R10'u 'pass' olmaktan çıkaran kaynaklar: okunamayan/sağlanmayan ekler, açılmayan bağlantılar, eksik alanlar."""
+    gaps = [a["name"] for a in inv.get("attachments", []) if a.get("status") in ("not_readable", "not_provided")]
+    gaps += [l["name"] for l in inv.get("external_links", []) if l.get("status") == "not_accessible"]
+    gaps += [l["key"] for l in inv.get("linked_issues", []) if l.get("status") == "not_accessible"]
+    gaps += [f["field"] for f in inv.get("fields", []) if f.get("status") == "not_provided"]
+    return gaps
+
+
+def complete_checks(doc, rd):
+    """R7, R9 ve R10 yazılmamışsa veriden hesaplanır; 'pass' kontrolünde bulgu yazılmamışsa '—' olur.
+
+    Hesap ihtiyatlıdır: R7 ve R10 en fazla 'partial' olur. Kuralın yalnızca okunamayan
+    bir ekte durması gibi 'fail' gerektiren durumu LLM kontrolü kendisi yazarak belirtir.
+    """
+    checks = rd.setdefault("checks", [])
+    present = {c.get("id") for c in checks}
+    if "R7" not in present:
+        open_cf = [c["id"] for c in doc["conflicts"] if c.get("status") == "unresolved"]
+        checks.append({"id": "R7", "result": "partial" if open_cf else "pass",
+                       "finding": f"Çözülmemiş çelişki: {', '.join(open_cf)}." if open_cf else "Çözülmemiş çelişki yok."})
+    if "R9" not in present:
+        details = doc.get("test_environment", {}).get("details") or []
+        if details:
+            checks.append({"id": "R9", "result": "pass",
+                           "finding": "Ortam: " + ", ".join(str(d.get("value")) for d in details) + "."})
+        else:
+            bug = doc.get("source", {}).get("issue_type") == "bug"
+            checks.append({"id": "R9", "result": "fail" if bug else "partial", "finding": "Test ortamı kartta tanımlı değil."})
+    if "R10" not in present:
+        gaps = inventory_gaps(doc.get("card_inventory", {}))
+        checks.append({"id": "R10", "result": "partial" if gaps else "pass",
+                       "finding": f"İşlenemeyen kaynaklar: {', '.join(gaps)}." if gaps else "Tüm ekler ve bağlantılar işlendi."})
+    for c in checks:
+        if c.get("id") in CHECK_CRITERIA:
+            c.setdefault("criterion", CHECK_CRITERIA[c["id"]])
+        if c.get("result") == "pass":
+            c.setdefault("finding", "—")
+    checks.sort(key=lambda c: CHECK_IDS.index(c["id"]) if c.get("id") in CHECK_IDS else len(CHECK_IDS))
 
 
 def compute_coverage(doc, rep):
@@ -352,10 +398,7 @@ def check_readiness(doc, rep, ids):
         rep.error("readiness R7", "çözülmemiş çelişki varken R7 'pass' olamaz")
     if not doc["test_environment"]["details"] and checks["R9"] == "pass":
         rep.error("readiness R9", "test_environment.details boşken R9 'pass' olamaz")
-    gaps = [a["name"] for a in inv["attachments"] if a["status"] in ("not_readable", "not_provided")]
-    gaps += [l["name"] for l in inv["external_links"] if l["status"] == "not_accessible"]
-    gaps += [l["key"] for l in inv["linked_issues"] if l["status"] == "not_accessible"]
-    gaps += [f["field"] for f in inv["fields"] if f["status"] == "not_provided"]
+    gaps = inventory_gaps(inv)
     if gaps and checks["R10"] == "pass":
         rep.error("readiness R10", f"işlenemeyen kaynaklar varken R10 'pass' olamaz: {gaps}")
 
@@ -832,6 +875,36 @@ def render_selection(doc, states):
     return "\n".join(out) + "\n"
 
 
+def start_selection_server(input_path, open_browser):
+    """secim_sunucu.py'yi bağımsız bir süreç olarak başlatır ve hazır olana kadar bekler.
+
+    Bağımsızdır: bu komut hemen döner, agent'ın terminali sunucuyu beklerken takılmaz.
+    Sunucu çıktısı <KEY>-sunucu.log'a gider. Dönüş: (adres veya None, günlük dosyası).
+    """
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    log = Path(input_path).with_name(Path(input_path).stem + "-sunucu.log")
+    script = Path(__file__).resolve().parent / "secim_sunucu.py"
+    cmd = [sys.executable, "-X", "utf8", str(script), str(input_path), "--port", str(port)]
+    if not open_browser:
+        cmd.append("--no-open")
+    flags = ({"creationflags": subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP}
+             if os.name == "nt" else {"start_new_session": True})
+    with open(log, "w", encoding="utf-8") as out:
+        subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, close_fds=True, **flags)
+    url = f"http://127.0.0.1:{port}/"
+    for _ in range(50):
+        try:
+            urllib.request.urlopen(url, timeout=1).close()
+            return url, log
+        except urllib.error.HTTPError:
+            return url, log
+        except OSError:
+            time.sleep(0.2)
+    return None, log
+
+
 def main():
     # Windows konsolunda Türkçe karakterlerin yazdırılabilmesi için
     for stream in (sys.stdout, sys.stderr):
@@ -845,7 +918,9 @@ def main():
     parser.add_argument("--report", help="üretilecek kart yeterlilik raporu (.md)")
     parser.add_argument("--selection", help="seçim listesi (.md); varsa işaretler korunur")
     parser.add_argument("--html", help="senaryoların ekrandan incelenip seçildiği sayfa (.html)")
-    parser.add_argument("--open", action="store_true", help="seçim sayfasını varsayılan tarayıcıda aç")
+    parser.add_argument("--sunucu", action="store_true",
+                        help="dosyaları ürettikten sonra 'Jira'da aç' düğmeli seçim sunucusunu arka planda başlat")
+    parser.add_argument("--open", action="store_true", help="seçim ekranını (--sunucu ile sunucuyu) tarayıcıda aç")
     parser.add_argument("--card", help="parse_jira_xml.py çıktısı <KEY>-kart.json (varsayılan: JSON'un yanındaki)")
     parser.add_argument("--check", action="store_true", help="yalnızca doğrula, dosya üretme")
     parser.add_argument("--exclude-drafts", action="store_true", help="needs_clarification senaryoları .feature'a yazma")
@@ -893,8 +968,12 @@ def main():
             kayit = load_json(record) if record.exists() else None
             Path(args.html).write_text(selection_page.selection_page(doc, states, kayit), encoding="utf-8")
             written.append(f"{args.html}: seçim ekranı ({selected})")
-            if args.open:
+            if args.open and not args.sunucu:
                 webbrowser.open(Path(args.html).resolve().as_uri())
+        if args.sunucu:
+            url, log = start_selection_server(args.input, args.open)
+            written.append(f"Seçim ekranı ('Jira'da aç' ile): {url}" if url
+                           else f"[UYARI] seçim sunucusu başlamadı; ayrıntı: {log}")
 
     for line in rep.errors + rep.warnings:
         print(line, file=sys.stderr)
