@@ -6,10 +6,10 @@
 <title>ESUBE-2041 · Senaryo seçimi</title>
 <style>
 :root { --bg:#f6f7f9; --panel:#ffffff; --text:#1d2330; --muted:#5d6676; --line:#dfe3ea; --accent:#1f5fbf;
-  --on:#eaf1fd; --warn-bg:#fff4e0; --warn:#8a5300; --draft:#b45309; --code:#f0f2f5; }
+  --accent-text:#ffffff; --on:#eaf1fd; --warn-bg:#fff4e0; --warn:#8a5300; --draft:#b45309; --code:#f0f2f5; }
 @media (prefers-color-scheme: dark) { :root { --bg:#14171c; --panel:#1c2027; --text:#e6e9ef; --muted:#9aa3b2;
-  --line:#2e343e; --accent:#5b9bff; --on:#1d2a3f; --warn-bg:#3a2a12; --warn:#ffc46b; --draft:#f5a524;
-  --code:#242a33; } }
+  --line:#2e343e; --accent:#5b9bff; --accent-text:#0b1220; --on:#1d2a3f; --warn-bg:#3a2a12; --warn:#ffc46b;
+  --draft:#f5a524; --code:#242a33; } }
 * { box-sizing: border-box; }
 body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui, "Segoe UI", sans-serif; }
 main { max-width:960px; margin:0 auto; padding:24px 16px 48px; }
@@ -18,8 +18,13 @@ h1 { font-size:1.35rem; margin:0 0 4px; } .sub { color:var(--muted); margin:0 0 
   background:var(--bg); padding:10px 0; border-bottom:1px solid var(--line); margin-bottom:12px; }
 button { font:inherit; border:1px solid var(--line); background:var(--panel); color:var(--text);
   border-radius:6px; padding:6px 12px; cursor:pointer; }
-#sayi { color:var(--muted); margin-left:auto; } #uyari { width:100%; background:var(--warn-bg); color:var(--warn);
+button.primary { background:var(--accent); color:var(--accent-text); border-color:var(--accent); }
+button:disabled { opacity:.5; cursor:not-allowed; }
+#sayi { color:var(--muted); margin-left:auto; } #uyari, .ayar { width:100%; background:var(--warn-bg); color:var(--warn);
   padding:6px 10px; border-radius:6px; }
+#durum { width:100%; color:var(--muted); } #durum:empty { display:none; }
+.jira { font-size:.9rem; } .jira a { color:var(--accent); font-weight:600; } .jira .hata { color:var(--warn); }
+li.acik { opacity:.85; } .hint { color:var(--muted); font-size:.9rem; margin-top:20px; }
 ol { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
 li { background:var(--panel); border:1px solid var(--line); border-radius:8px; }
 li.on { background:var(--on); border-color:var(--accent); }
@@ -39,7 +44,7 @@ pre { padding:10px; overflow:auto; font-size:.85rem; white-space:pre; }
 <main>
 <h1>ESUBE-2041 — E-Şube&#x27;den EFT ile para gönderme</h1>
 <p class="sub">Kart durumu: kısmi · 6 senaryo · açık soru: Q-02, Q-03</p>
-<div class="bar"><button type="button" data-sec="all">Tümü</button><button type="button" data-sec="ready">Hazırlar</button><button type="button" data-sec="none">Hiçbiri</button><span id="sayi"></span><div id="uyari" hidden></div></div>
+<div class="bar"><button type="button" data-sec="all">Tümü</button><button type="button" data-sec="ready">Hazırlar</button><button type="button" data-sec="none">Hiçbiri</button><span id="sayi"></span><div id="uyari" hidden></div><div id="durum" role="status"></div></div>
 <ol>
 <li><label class="row"><input type="checkbox" value="TS-ESUBE-2041-001" checked><span class="num">1.</span><span class="main"><span class="title">Geçerli bilgilerle gönderilen EFT tamamlanır ve dekont numarası gösterilir</span><span class="meta"><code>TS-ESUBE-2041-001</code><span class="badge">ana akış</span><span class="badge">yüksek</span><span class="badge">pozitif</span><span class="badge">@smoke</span></span></span></label><details><summary>Ayrıntı</summary><p>Ana akışı uçtan uca doğrulamak: geçerli alıcı bilgileri ve limit içindeki tutarlarla (tipik değer ve sınırlar) EFT&#x27;nin tamamlandığını, başarı mesajının ve dekont numarasının gösterildiğini görmek.</p><pre># language: tr
 Özellik: EFT Para Transferi
@@ -164,25 +169,78 @@ pre { padding:10px; overflow:auto; font-size:.85rem; white-space:pre; }
       | Alıcı Adı Soyadı boş | TR330006100519786457841326 |            | 1.000,00 |
       | Tutar boş            | TR330006100519786457841326 | Test Alıcı |          |</pre></details></li>
 </ol>
+<p class="hint">Seçilenleri Jira'da Test Senaryosu kartı olarak açmak için seçim sunucusunu başlatın: <code>python &lt;skill-klasörü&gt;/scripts/secim_sunucu.py test-scenarios/ESUBE-2041/ESUBE-2041.json</code></p>
 </main>
 <script>
 (() => {
   const boxes = [...document.querySelectorAll('input[type=checkbox][value]')];
   const count = document.getElementById('sayi');
   const warn = document.getElementById('uyari');
+  const button = document.getElementById('ac');
+  const status = document.getElementById('durum');
+  const open = () => boxes.filter(b => !b.disabled);
+  const chosen = () => open().filter(b => b.checked);
   function refresh() {
-    const chosen = boxes.filter(b => b.checked);
-    count.textContent = chosen.length + ' / ' + boxes.length + ' senaryo seçili';
-    const drafts = chosen.filter(b => b.hasAttribute('data-draft')).length;
+    const inJira = boxes.length - open().length;
+    count.textContent = chosen().length + ' / ' + open().length + ' senaryo seçili' + (inJira ? ' · ' + inJira + ' Jira\'da' : '');
+    const drafts = chosen().filter(b => b.hasAttribute('data-draft')).length;
     warn.hidden = !drafts;
     warn.textContent = drafts + ' taslak senaryo seçili: bloklayıcı sorusu yanıtlanmadı.';
     for (const b of boxes) b.closest('li').classList.toggle('on', b.checked);
+    if (button) {
+      button.disabled = button.hasAttribute('data-kapali') || !chosen().length;
+      button.textContent = 'Jira\'da aç (' + chosen().length + ')';
+    }
+  }
+  function mark(result) {
+    const box = boxes.find(b => b.value === result.id);
+    if (!box) return;
+    const li = box.closest('li');
+    let line = li.querySelector('.jira');
+    if (!line) {
+      line = document.createElement('span');
+      line.className = 'jira';
+      li.querySelector('.main').appendChild(line);
+    }
+    line.textContent = '';
+    if (result.key) {
+      const a = document.createElement('a');
+      a.href = result.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = result.key;
+      line.append('Jira: ', a);
+      box.checked = false; box.disabled = true; li.classList.add('acik');
+    }
+    if (result.mesaj) {
+      const m = document.createElement('span');
+      m.className = 'hata'; m.textContent = ' ' + result.mesaj;
+      line.append(m);
+    }
   }
   document.querySelectorAll('[data-sec]').forEach(el => el.addEventListener('click', () => {
-    for (const b of boxes) b.checked = el.dataset.sec === 'all' || (el.dataset.sec === 'ready' && !b.hasAttribute('data-draft'));
+    for (const b of open()) b.checked = el.dataset.sec === 'all' || (el.dataset.sec === 'ready' && !b.hasAttribute('data-draft'));
     refresh();
   }));
   boxes.forEach(b => b.addEventListener('change', refresh));
+  if (button) button.addEventListener('click', async () => {
+    const ids = chosen().map(b => b.value);
+    button.disabled = true;
+    status.textContent = ids.length + ' Test Senaryosu kartı açılıyor…';
+    try {
+      const response = await fetch('/api/ac', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Secim-Anahtari': button.dataset.anahtar },
+        body: JSON.stringify({ ids }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.hata || ('HTTP ' + response.status));
+      data.sonuclar.forEach(mark);
+      const ok = data.sonuclar.filter(r => r.durum === 'acildi').length;
+      const failed = data.sonuclar.filter(r => r.durum === 'hata' || r.durum === 'baglanamadi').length;
+      status.textContent = ok + ' kart açıldı' + (failed ? ', ' + failed + ' senaryoda sorun var (satırlarda yazıyor).' : '.');
+    } catch (error) {
+      status.textContent = 'Kartlar açılamadı: ' + error.message;
+    }
+    refresh();
+  });
   refresh();
 })();
 </script>

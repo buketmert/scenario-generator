@@ -889,7 +889,9 @@ def main():
         if args.html:
             sys.path.insert(0, str(Path(__file__).resolve().parent))
             import selection_page
-            Path(args.html).write_text(selection_page.selection_page(doc, states), encoding="utf-8")
+            record = Path(args.input).with_name(Path(args.input).stem + "-jira.json")  # jira_create.py kaydı
+            kayit = load_json(record) if record.exists() else None
+            Path(args.html).write_text(selection_page.selection_page(doc, states, kayit), encoding="utf-8")
             written.append(f"{args.html}: seçim ekranı ({selected})")
             if args.open:
                 webbrowser.open(Path(args.html).resolve().as_uri())

@@ -1,0 +1,3 @@
+# Python derleme önbelleği (script'ler çalıştırılınca oluşur)
+__pycache__/
+*.pyc

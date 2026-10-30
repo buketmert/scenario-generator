@@ -1,6 +1,6 @@
 ---
 name: scenario-generator
-description: Jira kartının (story, task, cross-functional, bug) kullanıcının paylaştığı XML dışa aktarımından uçtan uca manuel test senaryoları üretir ve Türkçe Gherkin ile yazar. Önce karttaki iş akışlarını (ana, alternatif, hata) çıkarır, her akış için girişten sonuca bir senaryo yazar; sınır değer, denklik sınıfı gibi ISTQB teknikleri akışların veri satırlarını üretir. Jira'ya bağlanmaz, ek indirmez. Kartın yeterliliğini değerlendirir, eksik ve çelişkili bilgiler için soru üretir. XML'i scripts/parse_jira_xml.py ayrıştırır; belirsizlikler çoktan seçmeli sorulur ve yanıtla devam edilir. LLM yalın bir JSON yazar; scripts/render_gherkin.py onu tamamlar, doğrular, .feature dosyası, yeterlilik raporu, seçim listesi ve senaryoların incelenip işaretlendiği seçim ekranını (HTML) üretir. Jira XML'i, kart içeriği veya kullanıcı hikâyesi verilip test senaryosu, test case, test durumu ya da Gherkin/feature istendiğinde kullan.
+description: Jira kartının (story, task, cross-functional, bug) kullanıcının paylaştığı XML dışa aktarımından uçtan uca manuel test senaryoları üretir ve Türkçe Gherkin ile yazar. Önce karttaki iş akışlarını (ana, alternatif, hata) çıkarır, her akış için girişten sonuca bir senaryo yazar; sınır değer, denklik sınıfı gibi ISTQB teknikleri akışların veri satırlarını üretir. Jira'ya bağlanmaz, ek indirmez. Kartın yeterliliğini değerlendirir, eksik ve çelişkili bilgiler için soru üretir. XML'i scripts/parse_jira_xml.py ayrıştırır; belirsizlikler çoktan seçmeli sorulur ve yanıtla devam edilir. LLM yalın bir JSON yazar; scripts/render_gherkin.py onu tamamlar, doğrular, .feature dosyası, yeterlilik raporu ve seçim listesi üretir; scripts/secim_sunucu.py seçim ekranını açar ve kullanıcının işaretlediği senaryoları "Jira'da aç" ile doğrudan Jira'da Test Senaryosu kartı olarak açıp kaynak karta bağlar (scripts/jira_create.py). Jira XML'i, kart içeriği veya kullanıcı hikâyesi verilip test senaryosu, test case, test durumu ya da Gherkin/feature istendiğinde kullan.
 ---
 
 # Scenario Generator
@@ -20,10 +20,14 @@ muhakeme gerektiren kısmı (yeterlilik, akışlar, senaryolar) yazar.
 XML ──parse_jira_xml.py──> <KEY>-kart.md + <KEY>-kart.json          (LLM'siz, saniyeler)
      → LLM: yeterlilik, test esası, akışlar → çoktan seçmeli sorular (tek tur)
      → LLM: yalın <KEY>.json (bir kerede)
-     ──render_gherkin.py --all --open──> tamamlar + doğrular → .feature, rapor,
-        seçim listesi, seçim ekranı (HTML, tarayıcıda açılır)
-     → kullanıcı Test Senaryosu kartı olacak senaryoları seçer
+     ──render_gherkin.py --all──> tamamlar + doğrular → .feature, rapor, seçim listesi
+     ──secim_sunucu.py──> seçim ekranı tarayıcıda açılır (yerel sunucu)
+     → kullanıcı işaretler → "Jira'da aç" → jira_create.py → Test Senaryosu kartları,
+        kaynak karta bağlı
 ```
+
+Jira'ya LLM bağlanmaz; kartları kullanıcı düğmeye bastığında `jira_create.py`
+açar. Jeton yalnızca kullanıcının ortam değişkenindedir.
 
 Süreç yalnızca üç yerde durur: XML verilmediyse (XML istenir), Adım 4b'deki
 sorularda (yanıt beklenir) ve kart `not_ready` ise (rapor ve sorular verilir).
@@ -36,9 +40,8 @@ sorularda (yanıt beklenir) ve kart `not_ready` ise (rapor ve sorular verilir).
   yeterlilik, test esası, çelişkiler, sorular ve yanıtları, akışlar, senaryolar.
   Kart bilgileri, envanter ve hesaplanabilen alanlar yazılmaz.
 - **Script'in çıktıları:** `.feature` dosyası (test uzmanı için), kart
-  yeterlilik raporu (ürün sahibi / analist için), seçim listesi ve seçim ekranı
-  (`<KEY>-secim.html`). Seçilen her senaryo, kaynak karta bağlantıyla
-  bağlanacak bir **Test Senaryosu** kartı adayıdır.
+  yeterlilik raporu (ürün sahibi / analist için), seçim listesi, seçim ekranı
+  ve Jira'da açılan **Test Senaryosu** kartları (kayıt: `<KEY>-jira.json`).
 
 **Okuma bütçesi:** `output-schema.json` ve `examples/` altındaki JSON okunmaz
 (birlikte ~23 bin token); yerlerine `output-template.md` okunur. Script şemaya
@@ -59,7 +62,10 @@ serbesttir ve `gherkin-format-rules.md`'deki okunabilirlik kurallarına uyar.
 | `references/test-design-rules.md` | Adım 3–5'te: risk, test derinliği, teknik seçimi, teknikler, senaryo yazım kuralları |
 | `references/gherkin-format-rules.md` | Adım 5'te: Gherkin anahtar kelimeleri, cümle yazımı, Örnekler, Geçmiş |
 | `references/output-schema.json` | Okunmaz; script doğrulamada kullanır |
-| `scripts/render_gherkin.py` | Adım 8'de çalıştırılır: JSON'u tamamlar ve doğrular; `.feature`, rapor, seçim listesi ve seçim ekranı (`scripts/selection_page.py`) üretir |
+| `scripts/render_gherkin.py` | Adım 8'de çalıştırılır: JSON'u tamamlar ve doğrular; `.feature`, rapor, seçim listesi ve durağan seçim ekranı (`scripts/selection_page.py`) üretir |
+| `scripts/secim_sunucu.py` | Adım 9'da arka planda çalıştırılır: seçim ekranını "Jira'da aç" düğmesiyle açar |
+| `scripts/jira_create.py` | Kartları açar (ekrandaki düğme onu çağırır); `--kesfet` ile Jira'yı tanıyıp ayar önerir |
+| `examples/jira-ayar.ornek.json` | Jira ayar dosyası örneği (`test-scenarios/jira-ayar.json`) |
 | `examples/ESUBE-2041.xml` → `examples/ESUBE-2041/` | Uçtan uca örnek: girdi XML ve agent'ın ürettiği her dosya (yalın JSON, kart dosyaları, `.feature`, rapor, seçim listesi ve ekranı). Q-01 çoktan seçmeli yanıtlanmıştır. İçeriği kopyalanmaz |
 
 ## İş akışı
@@ -256,38 +262,88 @@ JSON'u `test-scenarios/<KEY>/<KEY>.json` olarak **bir kerede** yaz ve çalışt�
 (yol skill klasörüne göredir; VS Code'da `.github/skills/scenario-generator/`):
 
 ```bash
-python <skill-klasörü>/scripts/render_gherkin.py test-scenarios/<KEY>/<KEY>.json --all --open
+python <skill-klasörü>/scripts/render_gherkin.py test-scenarios/<KEY>/<KEY>.json --all
 ```
 
 Script `<KEY>-kart.json`'u bulur, JSON'u tamamlar ve doğrular, yanına
 `<KEY>.feature`, `<KEY>-rapor.md`, `<KEY>-secim.md` ve `<KEY>-secim.html`
-yazar ve seçim ekranını tarayıcıda açar. `[HATA]` varsa yalnızca gösterilen
-yeri düzelt ve komutu yeniden çalıştır; hesaplanan alanlardaki farklar uyarıdır
-ve JSON'un yeniden yazılmasını gerektirmez. Kod çalıştıramıyorsan yalnızca
-JSON'u döndür.
+(durağan seçim ekranı) yazar. `[HATA]` varsa yalnızca gösterilen yeri düzelt
+ve komutu yeniden çalıştır; hesaplanan alanlardaki farklar uyarıdır ve JSON'un
+yeniden yazılmasını gerektirmez. Kod çalıştıramıyorsan yalnızca JSON'u döndür.
 
-Kullanıcıyla konuşmadan (pipeline'da) çalışıyorsan `--open` kullanılmaz;
-yanıt olarak yalnızca dosya yolları döner ve Adım 9 uygulanmaz.
+Kullanıcıyla konuşmadan (pipeline'da) çalışıyorsan yanıt olarak yalnızca
+dosya yolları döner ve Adım 9 uygulanmaz.
 
-### Adım 9: Ekrandan seçim
+### Adım 9: Ekrandan seçim ve Jira'da açma
 
-Hangi senaryonun Jira'da **Test Senaryosu kartına** dönüştürüleceğine
-**kullanıcı karar verir**:
+Seçim sunucusunu **arka planda** başlat (terminal kapanmasın; sunucu 60 dk
+işlem olmazsa kendiliğinden kapanır):
 
-- `<KEY>-secim.html` tek dosyalık bir sayfadır, internet gerektirmez. Senaryolar
-  koşum sırasıyla (önce `@smoke`, sonra risk) listelenir; her satırda akış
-  türü, öncelik, pozitif/negatif ve taslak işareti, "Ayrıntı" altında amaç,
-  Geçmiş dâhil Gherkin ve son koşullar vardır.
+```bash
+python <skill-klasörü>/scripts/secim_sunucu.py test-scenarios/<KEY>/<KEY>.json
+```
+
+Hangi senaryonun Jira'da **Test Senaryosu kartı** olacağına **kullanıcı karar
+verir**, açılan ekranda:
+
+- Senaryolar koşum sırasıyla (önce `@smoke`, sonra risk) listelenir; her
+  satırda akış türü, öncelik, pozitif/negatif ve taslak işareti, "Ayrıntı"
+  altında amaç, Geçmiş dâhil Gherkin ve son koşullar vardır.
 - Hazır senaryolar işaretli, taslaklar işaretsiz gelir; **Tümü**, **Hazırlar**,
   **Hiçbiri** düğmeleri vardır. Taslak seçilirse sayfa uyarır.
-- Seçim sohbetten de yapılabilir: kullanıcı "3 ve 7'yi ekleme" derse
-  `<KEY>-secim.md` dosyasında yalnızca söylediği satırların `[x]` / `[ ]`
-  işareti değiştirilir (yanıt belirsizse önce sorulur).
+- **Jira'da aç** işaretlileri Test Senaryosu kartı olarak açar, her birini
+  kaynak karta bağlar ve satırda kartın bağlantısını gösterir. Açılan
+  senaryolar kilitlenir; aynı senaryo ikinci kez açılmaz (`<KEY>-jira.json`).
+  Seçim `<KEY>-secim.md`'ye yazılır.
+- Jira ayarı veya jeton yoksa ekran nedenini yazar ve düğme kapalı kalır
+  (aşağıdaki kurulum).
 
-Kart güncellenip JSON yeniden üretildiğinde aynı komut çalıştırılır:
-`<KEY>-secim.md` içindeki işaretler korunur ve ekran da onlarla açılır.
-Yalnızca yeni senaryolar ve başlığı değişen senaryolar varsayılana döner;
-script bunları uyarı olarak yazar.
+Seçim sohbetten de yapılabilir: kullanıcı "3 ve 7'yi ekleme" derse
+`<KEY>-secim.md` dosyasında yalnızca söylediği satırların `[x]` / `[ ]` işareti
+değiştirilir (yanıt belirsizse önce sorulur); kullanıcı açmayı onaylarsa
+`python <skill-klasörü>/scripts/jira_create.py test-scenarios/<KEY>/<KEY>.json`
+işaretlileri açar.
+
+Kart güncellenip JSON yeniden üretildiğinde aynı komutlar çalıştırılır:
+`<KEY>-secim.md` içindeki işaretler korunur. Yalnızca yeni senaryolar ve başlığı
+değişen senaryolar varsayılana döner; script bunları uyarı olarak yazar.
+
+### Jira bağlantısı — bir kerelik kurulum (kullanıcı yapar)
+
+1. **Jeton:** Jira Server / Data Center'da Profil → Kişisel Erişim Jetonları
+   (Personal Access Tokens) ile bir jeton oluşturup `JIRA_PAT` ortam
+   değişkenine koyun. Jira Cloud'da `JIRA_EMAIL` ve `JIRA_API_TOKEN`. Jeton
+   hiçbir dosyaya yazılmaz, sohbete yapıştırılmaz.
+2. **Keşif:** Jira'nın sürümünü, bağlantı türlerini ve Test Senaryosu kartının
+   alanlarını okuyup `test-scenarios/jira-ayar.json` önerisini yazar:
+
+   ```bash
+   python <skill-klasörü>/scripts/jira_create.py test-scenarios/<KEY>/<KEY>.json --kesfet --url https://jira.kurum.local --kaydet
+   ```
+
+3. **Ayarı gözden geçirin** (`examples/jira-ayar.ornek.json`):
+
+   | Ayar | Anlamı |
+   |---|---|
+   | `url` | Jira adresi |
+   | `kimlik` | `pat` (Server / Data Center) veya `cloud` |
+   | `proje` | Kartların açılacağı proje; `null` ise kaynak kartın projesi |
+   | `kart_turu` | Kart türünün Jira'daki adı (`Test Senaryosu`) |
+   | `baglanti.tur` | Kaynak karta bağlantı türünün adı (`Relates`, `Test` …) |
+   | `baglanti.test_karti` | `outward`: "Test Senaryosu kartı `<çıkış açıklaması>` kaynak kart" (ör. "tests"); `inward`: tersi |
+   | `etiketler` | Akış türü, pozitif/negatif, kaynak kart ve senaryo kimliği etiket olarak yazılsın mı |
+   | `oncelik` | Risk seviyesi Jira önceliğine yazılsın mı (`oncelik_adlari` ile) |
+   | `alanlar` | Kartta özel alanlar varsa kimlikleri: `on_kosullar`, `test_adimlari`, `beklenen_sonuc`, `test_verisi` (`customfield_…`); `null` olanlar yalnızca açıklamaya yazılır |
+
+4. **Deneme:** `jira_create.py … --deneme` kart açmadan gönderilecek alanları
+   gösterir.
+
+Kartın içeriği: özet `[TS-…] <başlık>`; açıklamada amaç, akış, öncelik, teknik,
+izlenebilirlik, test ortamı, ön koşullar, test adımları, beklenen sonuç, test
+verisi, Geçmiş dâhil tam Gherkin, son koşullar ve netleştirmeler (Jira wiki
+biçimi); eşlenen özel alanlarda ilgili bölüm. Jira bir alanı reddederse
+(ekranda olmayan alan, olmayan kart türü) Jira'nın mesajı satırda gösterilir;
+kimlik veya erişim hatasında kalan senaryolar denenmez.
 
 ## Zorunlu kurallar
 
@@ -322,12 +378,14 @@ script bunları uyarı olarak yazar.
     enum değerleri şemadaki gibi İngilizce kalır.
 14. **Örnek kopyalanmaz.** `examples/` altındaki dosyalar yalnızca biçim ve
     ayrıntı düzeyini gösterir.
-15. **Ağ erişimi yok.** Jira'ya veya başka bir adrese bağlanılmaz, oturum
-    açılmaz, kimlik bilgisi istenmez, ek indirilmez. Kart verisinin tek
-    kaynağı paylaşılan XML ve kullanıcının açıkça eklediği dosyalardır.
-16. **Jira seçimi kullanıcınındır.** Seçim ekranda kullanıcı tarafından
-    yapılır; agent seçim listesindeki işaretleri yalnızca kullanıcının
-    söylediği gibi değiştirir.
+15. **LLM'in ağ erişimi yok.** Agent Jira'ya veya başka bir adrese bağlanmaz,
+    oturum açmaz, kimlik bilgisi istemez veya görmez, ek indirmez. Kart
+    verisinin tek kaynağı paylaşılan XML ve kullanıcının açıkça eklediği
+    dosyalardır. Jira'ya yalnızca `jira_create.py` bağlanır: kullanıcı ekranda
+    "Jira'da aç"a bastığında, açıkça istediğinde ya da `--kesfet` ile.
+16. **Jira seçimi kullanıcınındır.** Hangi senaryonun kart olacağını kullanıcı
+    seçer; agent seçim listesindeki işaretleri yalnızca kullanıcının söylediği
+    gibi değiştirir ve kullanıcı istemeden kart açmaz.
 17. **Yanıt, kaynaktır ama karar değildir.** Kullanıcının seçtiği yanıt test
     esası olur (`clarification`) ve süreç onunla ilerler; rapor bu yanıtların
     kart sahibiyle teyit edilmesini önerir. Yanıt yoksa veya "Bilinmiyor"

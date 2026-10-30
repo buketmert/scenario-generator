@@ -31,18 +31,24 @@ yazmayla ilerleyen yol var.
    yanıtı bekle. Soru yoksa geç.
 4. `test-scenarios/<KEY>/<KEY>.json` dosyasını yalın biçimde **bir kerede**
    yaz: akış başına bir senaryo, aynı sonuçlu veri varyasyonları veri satırı.
-5. Çıktıları üret ve seçim ekranını aç:
+5. Çıktıları üret:
 
    ```bash
-   python .github/skills/scenario-generator/scripts/render_gherkin.py test-scenarios/<KEY>/<KEY>.json --all --open
+   python .github/skills/scenario-generator/scripts/render_gherkin.py test-scenarios/<KEY>/<KEY>.json --all
    ```
 
-6. Hata varsa yalnızca hata veren alanı düzelt ve aynı komutu yeniden çalıştır.
+   Hata varsa yalnızca hata veren alanı düzelt ve aynı komutu yeniden çalıştır.
    En fazla üç deneme.
+6. Seçim ekranını **arka planda** aç:
+
+   ```bash
+   python .github/skills/scenario-generator/scripts/secim_sunucu.py test-scenarios/<KEY>/<KEY>.json
+   ```
 
 ## Sınırlar
 
-- Jira'ya bağlanma, URL açma, ek indirme veya kimlik isteme.
+- Jira'ya kendin bağlanma, URL açma, ek indirme veya kimlik isteme; Jira'ya
+  yalnızca kullanıcı "Jira'da aç"a bastığında script bağlanır.
 - Kartta veya kullanıcının yanıtında olmayan kural, veri, ekran ya da mesaj yazma.
 - Seçimi kullanıcı yapar; ekrandaki ve listedeki işaretleri kendiliğinden değiştirme.
 - `not_ready` kartta senaryo üretmeden rapor ve sorularla dur.
@@ -50,6 +56,7 @@ yazmayla ilerleyen yol var.
 ## Yanıt
 
 Tam JSON veya feature metnini sohbete kopyalama. Kart durumu, akış/senaryo
-sayısı, yanıtlanan ve açık sorular ve seçim ekranının yolunu
-(`test-scenarios/<KEY>/<KEY>-secim.html`) kısa ver; kullanıcıya Test Senaryosu
-kartı olacak senaryoları ekranda işaretlemesini söyle.
+sayısı, yanıtlanan ve açık sorular ve seçim ekranının adresini kısa ver;
+kullanıcıya Test Senaryosu kartı olacak senaryoları işaretleyip **Jira'da aç**
+düğmesine basmasını söyle. Sunucu `[UYARI] Jira'da açma kapalı` derse SKILL.md'deki
+"Jira bağlantısı — bir kerelik kurulum" adımlarını ver.

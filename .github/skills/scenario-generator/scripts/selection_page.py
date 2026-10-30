@@ -1,9 +1,11 @@
 """Senaryoların ekrandan incelenip seçildiği, dış kaynak kullanmayan tek dosyalık sayfa.
 
-render_gherkin.py --html (veya --all) bu modülü çağırır. Sayfa senaryoları koşum
+render_gherkin.py --html (veya --all) durağan sayfayı, secim_sunucu.py ise
+"Jira'da aç" düğmeli sayfayı bu modülle üretir. Sayfa senaryoları koşum
 sırasıyla listeler; her satırda akış türü, öncelik, pozitif/negatif ve taslak
 işareti, "Ayrıntı" altında amaç, Geçmiş dâhil Gherkin ve son koşullar vardır.
-İlk işaretler <KEY>-secim.md'dekilerdir.
+İlk işaretler <KEY>-secim.md'dekilerdir; Jira'da açılmış senaryolar kartın
+bağlantısıyla gösterilir ve yeniden seçilemez.
 """
 
 import html
@@ -16,10 +18,10 @@ import render_gherkin as rg  # noqa: E402
 
 PAGE_CSS = """
 :root { --bg:#f6f7f9; --panel:#ffffff; --text:#1d2330; --muted:#5d6676; --line:#dfe3ea; --accent:#1f5fbf;
-  --on:#eaf1fd; --warn-bg:#fff4e0; --warn:#8a5300; --draft:#b45309; --code:#f0f2f5; }
+  --accent-text:#ffffff; --on:#eaf1fd; --warn-bg:#fff4e0; --warn:#8a5300; --draft:#b45309; --code:#f0f2f5; }
 @media (prefers-color-scheme: dark) { :root { --bg:#14171c; --panel:#1c2027; --text:#e6e9ef; --muted:#9aa3b2;
-  --line:#2e343e; --accent:#5b9bff; --on:#1d2a3f; --warn-bg:#3a2a12; --warn:#ffc46b; --draft:#f5a524;
-  --code:#242a33; } }
+  --line:#2e343e; --accent:#5b9bff; --accent-text:#0b1220; --on:#1d2a3f; --warn-bg:#3a2a12; --warn:#ffc46b;
+  --draft:#f5a524; --code:#242a33; } }
 * { box-sizing: border-box; }
 body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui, "Segoe UI", sans-serif; }
 main { max-width:960px; margin:0 auto; padding:24px 16px 48px; }
@@ -28,8 +30,13 @@ h1 { font-size:1.35rem; margin:0 0 4px; } .sub { color:var(--muted); margin:0 0 
   background:var(--bg); padding:10px 0; border-bottom:1px solid var(--line); margin-bottom:12px; }
 button { font:inherit; border:1px solid var(--line); background:var(--panel); color:var(--text);
   border-radius:6px; padding:6px 12px; cursor:pointer; }
-#sayi { color:var(--muted); margin-left:auto; } #uyari { width:100%; background:var(--warn-bg); color:var(--warn);
+button.primary { background:var(--accent); color:var(--accent-text); border-color:var(--accent); }
+button:disabled { opacity:.5; cursor:not-allowed; }
+#sayi { color:var(--muted); margin-left:auto; } #uyari, .ayar { width:100%; background:var(--warn-bg); color:var(--warn);
   padding:6px 10px; border-radius:6px; }
+#durum { width:100%; color:var(--muted); } #durum:empty { display:none; }
+.jira { font-size:.9rem; } .jira a { color:var(--accent); font-weight:600; } .jira .hata { color:var(--warn); }
+li.acik { opacity:.85; } .hint { color:var(--muted); font-size:.9rem; margin-top:20px; }
 ol { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
 li { background:var(--panel); border:1px solid var(--line); border-radius:8px; }
 li.on { background:var(--on); border-color:var(--accent); }
@@ -50,19 +57,71 @@ PAGE_JS = """
   const boxes = [...document.querySelectorAll('input[type=checkbox][value]')];
   const count = document.getElementById('sayi');
   const warn = document.getElementById('uyari');
+  const button = document.getElementById('ac');
+  const status = document.getElementById('durum');
+  const open = () => boxes.filter(b => !b.disabled);
+  const chosen = () => open().filter(b => b.checked);
   function refresh() {
-    const chosen = boxes.filter(b => b.checked);
-    count.textContent = chosen.length + ' / ' + boxes.length + ' senaryo seçili';
-    const drafts = chosen.filter(b => b.hasAttribute('data-draft')).length;
+    const inJira = boxes.length - open().length;
+    count.textContent = chosen().length + ' / ' + open().length + ' senaryo seçili' + (inJira ? ' · ' + inJira + ' Jira\\'da' : '');
+    const drafts = chosen().filter(b => b.hasAttribute('data-draft')).length;
     warn.hidden = !drafts;
     warn.textContent = drafts + ' taslak senaryo seçili: bloklayıcı sorusu yanıtlanmadı.';
     for (const b of boxes) b.closest('li').classList.toggle('on', b.checked);
+    if (button) {
+      button.disabled = button.hasAttribute('data-kapali') || !chosen().length;
+      button.textContent = 'Jira\\'da aç (' + chosen().length + ')';
+    }
+  }
+  function mark(result) {
+    const box = boxes.find(b => b.value === result.id);
+    if (!box) return;
+    const li = box.closest('li');
+    let line = li.querySelector('.jira');
+    if (!line) {
+      line = document.createElement('span');
+      line.className = 'jira';
+      li.querySelector('.main').appendChild(line);
+    }
+    line.textContent = '';
+    if (result.key) {
+      const a = document.createElement('a');
+      a.href = result.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = result.key;
+      line.append('Jira: ', a);
+      box.checked = false; box.disabled = true; li.classList.add('acik');
+    }
+    if (result.mesaj) {
+      const m = document.createElement('span');
+      m.className = 'hata'; m.textContent = ' ' + result.mesaj;
+      line.append(m);
+    }
   }
   document.querySelectorAll('[data-sec]').forEach(el => el.addEventListener('click', () => {
-    for (const b of boxes) b.checked = el.dataset.sec === 'all' || (el.dataset.sec === 'ready' && !b.hasAttribute('data-draft'));
+    for (const b of open()) b.checked = el.dataset.sec === 'all' || (el.dataset.sec === 'ready' && !b.hasAttribute('data-draft'));
     refresh();
   }));
   boxes.forEach(b => b.addEventListener('change', refresh));
+  if (button) button.addEventListener('click', async () => {
+    const ids = chosen().map(b => b.value);
+    button.disabled = true;
+    status.textContent = ids.length + ' Test Senaryosu kartı açılıyor…';
+    try {
+      const response = await fetch('/api/ac', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Secim-Anahtari': button.dataset.anahtar },
+        body: JSON.stringify({ ids }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.hata || ('HTTP ' + response.status));
+      data.sonuclar.forEach(mark);
+      const ok = data.sonuclar.filter(r => r.durum === 'acildi').length;
+      const failed = data.sonuclar.filter(r => r.durum === 'hata' || r.durum === 'baglanamadi').length;
+      status.textContent = ok + ' kart açıldı' + (failed ? ', ' + failed + ' senaryoda sorun var (satırlarda yazıyor).' : '.');
+    } catch (error) {
+      status.textContent = 'Kartlar açılamadı: ' + error.message;
+    }
+    refresh();
+  });
   refresh();
 })();
 """
@@ -78,8 +137,11 @@ def gherkin_block(doc, sc, questions, assumptions, items):
     return "\n".join(out)
 
 
-def selection_page(doc, states):
+def selection_page(doc, states, kayit=None, sunucu=None):
+    """kayit: <KEY>-jira.json (Jira'da açılmış senaryolar). sunucu: {"anahtar": ..., "uyari": ...};
+    verilirse sayfa "Jira'da aç" düğmesiyle secim_sunucu.py'ye bağlanır."""
     e = html.escape
+    kayit = kayit or {}
     questions = {q["id"]: q for q in doc["readiness"]["clarification_questions"]}
     assumptions = {a["id"]: a for a in doc["assumptions"]}
     items = {i["id"]: i for i in doc["coverage_items"]}
@@ -94,11 +156,18 @@ def selection_page(doc, states):
             open_q = [q for q in sc.get("open_question_ids", []) if not rg.is_answered(questions[q])]
             meta += f'<span class="badge draft">taslak · {e(", ".join(open_q))}</span>'
         post = "".join(f"<p>Son koşul: {e(p)}</p>" for p in sc.get("postconditions", []))
+        created = kayit.get(sc["id"])
+        if created:
+            box, li_attr = " disabled", ' class="acik"'
+            jira = (f'<span class="jira">Jira: <a href="{e(created["url"])}" target="_blank" rel="noopener">'
+                    f'{e(created["key"])}</a></span>')
+        else:
+            box, li_attr, jira = " checked" if states.get(sc["id"]) else "", "", ""
         cards.append(
-            f'<li><label class="row"><input type="checkbox" value="{e(sc["id"])}"'
-            f'{" checked" if states.get(sc["id"]) else ""}{" data-draft" if draft else ""}>'
+            f'<li{li_attr}><label class="row"><input type="checkbox" value="{e(sc["id"])}"'
+            f'{box}{" data-draft" if draft else ""}>'
             f'<span class="num">{n}.</span><span class="main"><span class="title">{e(sc["title"])}</span>'
-            f'<span class="meta"><code>{e(sc["id"])}</code>{meta}</span></span></label>'
+            f'<span class="meta"><code>{e(sc["id"])}</code>{meta}</span>{jira}</span></label>'
             f'<details><summary>Ayrıntı</summary><p>{e(sc["objective"])}</p>'
             f'<pre>{e(gherkin_block(doc, sc, questions, assumptions, items))}</pre>{post}</details></li>')
     open_q = [q["id"] for q in rd["clarification_questions"] if not rg.is_answered(q)]
@@ -106,6 +175,16 @@ def selection_page(doc, states):
     if open_q:
         sub += f" · açık soru: {', '.join(open_q)}"
     body = "\n".join(cards) if cards else f"<p>Seçilecek senaryo yok (kart durumu: {e(rg.tr(rd['status']))}).</p>"
+    if sunucu:
+        closed = " data-kapali" if sunucu.get("uyari") else ""
+        action = (f'<button type="button" id="ac" class="primary" data-anahtar="{e(sunucu["anahtar"])}"{closed}>'
+                  "Jira'da aç</button>")
+        notice = f'<div class="ayar">{e(sunucu["uyari"])}</div>' if sunucu.get("uyari") else ""
+        hint = ""
+    else:
+        action, notice = "", ""
+        hint = ('<p class="hint">Seçilenleri Jira\'da Test Senaryosu kartı olarak açmak için seçim sunucusunu başlatın: '
+                f"<code>python &lt;skill-klasörü&gt;/scripts/secim_sunucu.py test-scenarios/{e(key)}/{e(key)}.json</code></p>\n")
     return (
         '<!doctype html>\n<html lang="tr">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
@@ -113,7 +192,7 @@ def selection_page(doc, states):
         f"<h1>{e(key)} — {e(doc['source']['summary'])}</h1>\n<p class=\"sub\">{e(sub)}</p>\n"
         '<div class="bar"><button type="button" data-sec="all">Tümü</button>'
         '<button type="button" data-sec="ready">Hazırlar</button>'
-        '<button type="button" data-sec="none">Hiçbiri</button><span id="sayi"></span>'
-        '<div id="uyari" hidden></div></div>\n'
-        f"<ol>\n{body}\n</ol>\n"
+        f'<button type="button" data-sec="none">Hiçbiri</button><span id="sayi"></span>{action}'
+        f'<div id="uyari" hidden></div>{notice}<div id="durum" role="status"></div></div>\n'
+        f"<ol>\n{body}\n</ol>\n{hint}"
         f"</main>\n<script>{PAGE_JS}</script>\n</body>\n</html>\n")

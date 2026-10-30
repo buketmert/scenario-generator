@@ -37,7 +37,7 @@ Aşağıdaki adımları sırayla uygula. Ara adımlarda onay isteme, plan sunma,
 (iste), 3. adımdaki sorularda (yanıtı bekle) ve kart `not_ready` ise (raporu ve
 soruları ver).
 
-### 1. XML'i ayrıştır — LLM ile okuma
+### 1. XML'i script'le ayrıştır
 
 XML bir dosya yoluysa onu, sohbete yapıştırıldıysa önce
 `test-scenarios/_girdi.xml` dosyasına yazıp onu kullan:
@@ -88,39 +88,57 @@ belirleyen yanıt için kaynağı `clarification` olan bir BR ekle
 biçimde yaz: her akış için bir uçtan uca senaryo; script'in doldurduğu
 alanları yazma.
 
-### 5. Çıktıları üret ve seçim ekranını aç
+### 5. Çıktıları üret
 
 ```bash
-python .github/skills/scenario-generator/scripts/render_gherkin.py test-scenarios/<KEY>/<KEY>.json --all --open
+python .github/skills/scenario-generator/scripts/render_gherkin.py test-scenarios/<KEY>/<KEY>.json --all
 ```
 
-- `[HATA]` varsa yalnızca hatanın gösterdiği yeri düzelt ve komutu yeniden
-  çalıştır; en fazla üç deneme. `[UYARI]` satırlarından önemlileri yanıtında
-  belirt.
-- Komut `.feature`, rapor, seçim listesi ve seçim ekranını (`<KEY>-secim.html`)
-  üretir ve ekranı tarayıcıda açar.
+`[HATA]` varsa yalnızca hatanın gösterdiği yeri düzelt ve komutu yeniden
+çalıştır; en fazla üç deneme. `[UYARI]` satırlarından önemlileri yanıtında
+belirt.
 
-### 6. Yanıt
+### 6. Seçim ekranını aç
+
+Şu komutu **arka planda** (terminal beklemeden) başlat; seçim ekranını
+tarayıcıda açar ve kullanıcı "Jira'da aç"a basana kadar çalışır:
+
+```bash
+python .github/skills/scenario-generator/scripts/secim_sunucu.py test-scenarios/<KEY>/<KEY>.json
+```
+
+Çıktıda `[UYARI] Jira'da açma kapalı` görürsen Jira ayarı veya jeton eksiktir;
+kullanıcıya SKILL.md'deki "Jira bağlantısı — bir kerelik kurulum" adımlarını
+kısaca ver. Jetonu isteme; kullanıcı kendisi ortam değişkenine koyar.
+
+### 7. Yanıt
 
 Sohbette JSON'u veya `.feature` dosyasının tamamını yazma. Kısa özet ver:
 
 - **Kart:** `<KEY>` — özet, kart durumu (hazır / kısmi / yetersiz)
 - **Akışlar ve senaryolar:** ana / alternatif / hata akışı sayısı; hazır ve taslak senaryo sayısı
 - **Sorular:** yanıtlananlar (seçilen şıkla) ve açık kalanlar
-- **Seçim ekranı:** `test-scenarios/<KEY>/<KEY>-secim.html` — senaryolar
-  ayrıntılarıyla burada incelenir ve Test Senaryosu kartı olacaklar işaretlenir.
+- **Seçim ekranı:** tarayıcıda açılan adres — "Test Senaryosu kartı olacak
+  senaryoları işaretleyip **Jira'da aç** düğmesine basın; açılan kartların
+  bağlantıları satırlarda görünür."
 
 Kullanıcı seçimi sohbetten yaparsa ("3 ve 5'i ekleme") `<KEY>-secim.md`
-dosyasında yalnızca söylediği satırların işaretini değiştir ve 5. adımdaki
-komutu yeniden çalıştır; ekran yeni işaretlerle açılır.
+dosyasında yalnızca söylediği satırların işaretini değiştir. Kullanıcı açıkça
+"Jira'da aç" derse şunu çalıştır ve açılan kart anahtarlarını bildir:
+
+```bash
+python .github/skills/scenario-generator/scripts/jira_create.py test-scenarios/<KEY>/<KEY>.json
+```
 
 ## Kurallar
 
 - **Uydurma yok.** Kartta veya kullanıcının yanıtında olmayan kural, değer,
   mesaj, alan veya ekran kullanılmaz.
-- **Ağ erişimi yok.** Jira'ya veya başka bir adrese bağlanma, oturum açma,
-  kimlik bilgisi isteme, ek indirme. Çalıştırdığın komutlar yalnızca
-  `parse_jira_xml.py` ve `render_gherkin.py`'dir.
+- **Ağ erişimi yok.** Jira'ya veya başka bir adrese kendin bağlanma, oturum
+  açma, kimlik bilgisi isteme veya görme, ek indirme. Çalıştırdığın komutlar
+  yalnızca `parse_jira_xml.py`, `render_gherkin.py`, `secim_sunucu.py` ve
+  kullanıcı açıkça istediğinde `jira_create.py`'dir; Jira'ya bu script'ler
+  kullanıcının jetonuyla bağlanır.
 - **Ekler ve bağlı kartlar:** XML yalnızca adlarını taşır; script bunları
   `not_provided` / `not_accessible` kaydeder. Kullanıcı bir ekin dosyasını
   açıkça verdiyse yalnızca onu oku ve envanterde aynı adla `processed` yaz.
