@@ -1,6 +1,6 @@
 ---
 name: Senaryo Üretici
-description: "Test senaryosu oluştur" denince kullanıcının paylaştığı Jira XML dışa aktarımından uçtan uca manuel test senaryoları üretir (Türkçe Gherkin); kartın ana, alternatif ve hata akışlarının her biri girişten sonuca bir senaryodur. Belirsizlikleri çoktan seçmeli sorar, yanıtlarla devam eder. Senaryoları bir seçim ekranında açar; kullanıcı işaretlediklerini Test Senaryosu kartı olarak Jira CSV'sine indirir. Jira'ya bağlanmaz, ek indirmez.
+description: "Test senaryosu oluştur" denince kullanıcının paylaştığı Jira XML dışa aktarımından uçtan uca manuel test senaryoları üretir (Türkçe Gherkin); kartın ana, alternatif ve hata akışlarının her biri girişten sonuca bir senaryodur. Belirsizlikleri çoktan seçmeli sorar, yanıtlarla devam eder. Senaryoları bir seçim ekranında açar; kullanıcı Test Senaryosu kartı olacakları işaretler. Jira'ya bağlanmaz, ek indirmez.
 argument-hint: test senaryosu oluştur + Jira kartının XML dışa aktarımı (yapıştırılmış metin veya .xml dosya yolu)
 tools:
   - read
@@ -107,16 +107,12 @@ Sohbette JSON'u veya `.feature` dosyasının tamamını yazma. Kısa özet ver:
 - **Kart:** `<KEY>` — özet, kart durumu (hazır / kısmi / yetersiz)
 - **Akışlar ve senaryolar:** ana / alternatif / hata akışı sayısı; hazır ve taslak senaryo sayısı
 - **Sorular:** yanıtlananlar (seçilen şıkla) ve açık kalanlar
-- **Seçim ekranı:** `test-scenarios/<KEY>/<KEY>-secim.html` — "Senaryoları
-  işaretleyip **Jira CSV indir** düğmesine basın; her seçili senaryo bir Test
-  Senaryosu kartıdır."
+- **Seçim ekranı:** `test-scenarios/<KEY>/<KEY>-secim.html` — senaryolar
+  ayrıntılarıyla burada incelenir ve Test Senaryosu kartı olacaklar işaretlenir.
 
 Kullanıcı seçimi sohbetten yaparsa ("3 ve 5'i ekleme") `<KEY>-secim.md`
-dosyasında yalnızca söylediği satırların işaretini değiştir ve şunu çalıştır:
-
-```bash
-python .github/skills/scenario-generator/scripts/jira_export.py test-scenarios/<KEY>/<KEY>.json test-scenarios/<KEY>/<KEY>-secim.md test-scenarios/<KEY>/<KEY>-jira.csv
-```
+dosyasında yalnızca söylediği satırların işaretini değiştir ve 5. adımdaki
+komutu yeniden çalıştır; ekran yeni işaretlerle açılır.
 
 ## Kurallar
 
@@ -124,7 +120,7 @@ python .github/skills/scenario-generator/scripts/jira_export.py test-scenarios/<
   mesaj, alan veya ekran kullanılmaz.
 - **Ağ erişimi yok.** Jira'ya veya başka bir adrese bağlanma, oturum açma,
   kimlik bilgisi isteme, ek indirme. Çalıştırdığın komutlar yalnızca
-  `parse_jira_xml.py`, `render_gherkin.py` ve `jira_export.py`'dir.
+  `parse_jira_xml.py` ve `render_gherkin.py`'dir.
 - **Ekler ve bağlı kartlar:** XML yalnızca adlarını taşır; script bunları
   `not_provided` / `not_accessible` kaydeder. Kullanıcı bir ekin dosyasını
   açıkça verdiyse yalnızca onu oku ve envanterde aynı adla `processed` yaz.

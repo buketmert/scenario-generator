@@ -14,5 +14,4 @@ risk seviyesi.
 - [x] 5. TS-ESUBE-2041-006 · hata akışı · yüksek · negatif · hazır — IBAN alanına 26 karakterden fazlası girilemez
 - [x] 6. TS-ESUBE-2041-004 · hata akışı · orta · negatif · hazır — Zorunlu alanlardan biri boş bırakıldığında EFT başlatılmaz ve zorunlu alan mesajı gösterilir
 
-Ekrandan seçim: `<KEY>-secim.html` (işaretle → Jira CSV indir).
-Komutla aktarım: `python <skill-klasörü>/scripts/jira_export.py <KEY>.json <KEY>-secim.md <KEY>-jira.csv`
+Ekrandan seçim: `<KEY>-secim.html`.

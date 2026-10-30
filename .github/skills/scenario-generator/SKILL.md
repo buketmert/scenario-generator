@@ -1,6 +1,6 @@
 ---
 name: scenario-generator
-description: Jira kartının (story, task, cross-functional, bug) kullanıcının paylaştığı XML dışa aktarımından uçtan uca manuel test senaryoları üretir ve Türkçe Gherkin ile yazar. Önce karttaki iş akışlarını (ana, alternatif, hata) çıkarır, her akış için girişten sonuca bir senaryo yazar; sınır değer, denklik sınıfı gibi ISTQB teknikleri akışların veri satırlarını üretir. Jira'ya bağlanmaz, ek indirmez. Kartın yeterliliğini değerlendirir, eksik ve çelişkili bilgiler için soru üretir. XML'i scripts/parse_jira_xml.py ayrıştırır; belirsizlikler çoktan seçmeli sorulur ve yanıtla devam edilir. LLM yalın bir JSON yazar; scripts/render_gherkin.py onu tamamlar, doğrular, .feature dosyası, yeterlilik raporu ve senaryoların işaretlenip Test Senaryosu kartı olarak Jira CSV'sine indirildiği seçim ekranını (HTML) üretir. Jira XML'i, kart içeriği veya kullanıcı hikâyesi verilip test senaryosu, test case, test durumu ya da Gherkin/feature istendiğinde kullan.
+description: Jira kartının (story, task, cross-functional, bug) kullanıcının paylaştığı XML dışa aktarımından uçtan uca manuel test senaryoları üretir ve Türkçe Gherkin ile yazar. Önce karttaki iş akışlarını (ana, alternatif, hata) çıkarır, her akış için girişten sonuca bir senaryo yazar; sınır değer, denklik sınıfı gibi ISTQB teknikleri akışların veri satırlarını üretir. Jira'ya bağlanmaz, ek indirmez. Kartın yeterliliğini değerlendirir, eksik ve çelişkili bilgiler için soru üretir. XML'i scripts/parse_jira_xml.py ayrıştırır; belirsizlikler çoktan seçmeli sorulur ve yanıtla devam edilir. LLM yalın bir JSON yazar; scripts/render_gherkin.py onu tamamlar, doğrular, .feature dosyası, yeterlilik raporu, seçim listesi ve senaryoların incelenip işaretlendiği seçim ekranını (HTML) üretir. Jira XML'i, kart içeriği veya kullanıcı hikâyesi verilip test senaryosu, test case, test durumu ya da Gherkin/feature istendiğinde kullan.
 ---
 
 # Scenario Generator
@@ -22,7 +22,7 @@ XML ──parse_jira_xml.py──> <KEY>-kart.md + <KEY>-kart.json          (LLM
      → LLM: yalın <KEY>.json (bir kerede)
      ──render_gherkin.py --all --open──> tamamlar + doğrular → .feature, rapor,
         seçim listesi, seçim ekranı (HTML, tarayıcıda açılır)
-     → kullanıcı ekranda işaretler → "Jira CSV indir" → Test Senaryosu kartları
+     → kullanıcı Test Senaryosu kartı olacak senaryoları seçer
 ```
 
 Süreç yalnızca üç yerde durur: XML verilmediyse (XML istenir), Adım 4b'deki
@@ -37,9 +37,8 @@ sorularda (yanıt beklenir) ve kart `not_ready` ise (rapor ve sorular verilir).
   Kart bilgileri, envanter ve hesaplanabilen alanlar yazılmaz.
 - **Script'in çıktıları:** `.feature` dosyası (test uzmanı için), kart
   yeterlilik raporu (ürün sahibi / analist için), seçim listesi ve seçim ekranı
-  (`<KEY>-secim.html`). Ekranda işaretlenen her senaryo, kaynak karta
-  bağlantıyla bağlanacak bir **Test Senaryosu** kartı olarak Jira CSV'sine
-  iner.
+  (`<KEY>-secim.html`). Seçilen her senaryo, kaynak karta bağlantıyla
+  bağlanacak bir **Test Senaryosu** kartı adayıdır.
 
 **Okuma bütçesi:** `output-schema.json` ve `examples/` altındaki JSON okunmaz
 (birlikte ~23 bin token); yerlerine `output-template.md` okunur. Script şemaya
@@ -60,9 +59,8 @@ serbesttir ve `gherkin-format-rules.md`'deki okunabilirlik kurallarına uyar.
 | `references/test-design-rules.md` | Adım 3–5'te: risk, test derinliği, teknik seçimi, teknikler, senaryo yazım kuralları |
 | `references/gherkin-format-rules.md` | Adım 5'te: Gherkin anahtar kelimeleri, cümle yazımı, Örnekler, Geçmiş |
 | `references/output-schema.json` | Okunmaz; script doğrulamada kullanır |
-| `scripts/render_gherkin.py` | Adım 8'de çalıştırılır: JSON'u tamamlar ve doğrular; `.feature`, rapor, seçim listesi ve seçim ekranı üretir |
-| `scripts/jira_export.py` | Adım 9'da, seçim sohbetten yapılırsa: seçim listesindeki işaretlilerden Jira CSV'si |
-| `examples/ESUBE-2041.xml` → `examples/ESUBE-2041/` | Uçtan uca örnek: girdi XML ve agent'ın ürettiği her dosya (yalın JSON, kart dosyaları, `.feature`, rapor, seçim listesi ve ekranı, CSV). Q-01 çoktan seçmeli yanıtlanmıştır. İçeriği kopyalanmaz |
+| `scripts/render_gherkin.py` | Adım 8'de çalıştırılır: JSON'u tamamlar ve doğrular; `.feature`, rapor, seçim listesi ve seçim ekranı (`scripts/selection_page.py`) üretir |
+| `examples/ESUBE-2041.xml` → `examples/ESUBE-2041/` | Uçtan uca örnek: girdi XML ve agent'ın ürettiği her dosya (yalın JSON, kart dosyaları, `.feature`, rapor, seçim listesi ve ekranı). Q-01 çoktan seçmeli yanıtlanmıştır. İçeriği kopyalanmaz |
 
 ## İş akışı
 
@@ -271,70 +269,25 @@ JSON'u döndür.
 Kullanıcıyla konuşmadan (pipeline'da) çalışıyorsan `--open` kullanılmaz;
 yanıt olarak yalnızca dosya yolları döner ve Adım 9 uygulanmaz.
 
-### Adım 9: Ekrandan seçim ve Test Senaryosu kartları
+### Adım 9: Ekrandan seçim
 
 Hangi senaryonun Jira'da **Test Senaryosu kartına** dönüştürüleceğine
-**kullanıcı karar verir**, ekranda:
+**kullanıcı karar verir**:
 
 - `<KEY>-secim.html` tek dosyalık bir sayfadır, internet gerektirmez. Senaryolar
   koşum sırasıyla (önce `@smoke`, sonra risk) listelenir; her satırda akış
-  türü, öncelik, pozitif/negatif ve taslak işareti, "Ayrıntı" altında amaç ve
-  Gherkin vardır.
+  türü, öncelik, pozitif/negatif ve taslak işareti, "Ayrıntı" altında amaç,
+  Geçmiş dâhil Gherkin ve son koşullar vardır.
 - Hazır senaryolar işaretli, taslaklar işaretsiz gelir; **Tümü**, **Hazırlar**,
   **Hiçbiri** düğmeleri vardır. Taslak seçilirse sayfa uyarır.
-- **Jira CSV indir** yalnızca işaretli senaryoların `<KEY>-jira.csv` dosyasını
-  indirir. CSV satırları script tarafından hesaplanmıştır; sayfa yalnızca
-  seçilenleri birleştirir, bu yüzden komut satırıyla aynı dosyayı verir.
-
-Seçim sohbetten de yapılabilir: kullanıcı "3 ve 7'yi ekleme" derse
-`<KEY>-secim.md` dosyasında yalnızca söylediği satırların `[x]` / `[ ]`
-işareti değiştirilir (yanıt belirsizse önce sorulur) ve CSV komutla üretilir:
-
-```bash
-python <skill-klasörü>/scripts/jira_export.py test-scenarios/<KEY>/<KEY>.json test-scenarios/<KEY>/<KEY>-secim.md test-scenarios/<KEY>/<KEY>-jira.csv
-```
-
-Kart türü varsayılan olarak `Test Senaryosu`dur; kurumda adı farklıysa iki
-script'e de `--issue-type "<ad>"` verilir. `jira_export.py`, liste JSON'la
-uyuşmuyorsa (başka karta ait satır, değişmiş başlık, tekrar eden satır) veya
-hiç işaret yoksa dosya üretmez.
+- Seçim sohbetten de yapılabilir: kullanıcı "3 ve 7'yi ekleme" derse
+  `<KEY>-secim.md` dosyasında yalnızca söylediği satırların `[x]` / `[ ]`
+  işareti değiştirilir (yanıt belirsizse önce sorulur).
 
 Kart güncellenip JSON yeniden üretildiğinde aynı komut çalıştırılır:
 `<KEY>-secim.md` içindeki işaretler korunur ve ekran da onlarla açılır.
 Yalnızca yeni senaryolar ve başlığı değişen senaryolar varsayılana döner;
 script bunları uyarı olarak yazar.
-
-**CSV'deki her satır bir Test Senaryosu kartıdır:**
-
-| Sütun | İçerik |
-|---|---|
-| `Summary` | `[TS-…] <başlık>` |
-| `Issue Type` | `Test Senaryosu` |
-| `Priority` | Risk seviyesinden: kritik → Highest, yüksek → High, orta → Medium, düşük → Low |
-| `Kaynak Kart` | Senaryonun üretildiği kartın anahtarı (bağlantı için) |
-| `Akış` | ana akış / alternatif akış / hata akışı |
-| `Ön Koşullar` | Geçmiş ve `Diyelim ki` adımları, numaralı |
-| `Test Adımları` | Eylem ve doğrulama adımları sırasıyla, numaralı (uçtan uca) |
-| `Beklenen Sonuç` | `O zaman` adımları, numaralı |
-| `Test Verisi` | Veri satırları tablosu (birden fazla satırda) veya tek satırın değerleri |
-| `Description` | Amaç, akış, öncelik, teknik, izlenebilirlik, test ortamı, Geçmiş dâhil tam Gherkin, son koşullar, notlar, açık sorular |
-| `Labels` | Özellik ve senaryo etiketleri, akış türü (`ana-akis`, `alternatif-akis`, `hata-akisi`), `pozitif`/`negatif`, `taslak`, kaynak kart anahtarı |
-
-**CSV'nin Jira'ya yüklenmesi** (kullanıcı yapar; agent Jira'ya bağlanmaz):
-
-1. Jira'nın CSV içe aktarımını açın (Issues → Import issues from CSV), kodlama
-   olarak UTF-8 seçin, kartların açılacağı projeyi seçin.
-2. `Summary`, `Issue Type`, `Priority`, `Description` ve `Labels` sütunlarını
-   aynı adlı alanlara eşleyin.
-3. Test Senaryosu kartınızda Ön Koşullar, Test Adımları, Beklenen Sonuç veya
-   Test Verisi alanları varsa ilgili sütunları onlara eşleyin; yoksa eşlemeden
-   bırakın — aynı içerik Description'da da vardır.
-4. `Kaynak Kart` sütununu, Test Senaryosu kartının kaynak karta bağlandığı
-   bağlantı türüne eşleyin (Link "…"). Sihirbaz bağlantı eşlemesi sunmazsa
-   sütunu boş bırakın; kartlar kaynak kart anahtarı etiketiyle bulunup
-   bağlanabilir.
-5. Öncelik adları Jira'nın varsayılanlarıdır (Highest, High, Medium, Low);
-   kurumda farklıysa sihirbazın değer eşlemesinde düzeltin.
 
 ## Zorunlu kurallar
 
@@ -374,8 +327,7 @@ script bunları uyarı olarak yazar.
     kaynağı paylaşılan XML ve kullanıcının açıkça eklediği dosyalardır.
 16. **Jira seçimi kullanıcınındır.** Seçim ekranda kullanıcı tarafından
     yapılır; agent seçim listesindeki işaretleri yalnızca kullanıcının
-    söylediği gibi değiştirir. Jira kayıtlarını agent oluşturmaz; CSV'yi
-    kullanıcı yükler.
+    söylediği gibi değiştirir.
 17. **Yanıt, kaynaktır ama karar değildir.** Kullanıcının seçtiği yanıt test
     esası olur (`clarification`) ve süreç onunla ilerler; rapor bu yanıtların
     kart sahibiyle teyit edilmesini önerir. Yanıt yoksa veya "Bilinmiyor"

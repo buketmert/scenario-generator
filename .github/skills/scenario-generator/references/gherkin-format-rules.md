@@ -13,7 +13,7 @@ Bu dosya yalnızca okunabilirlik ve tutarlılık için temel kuralları içerir.
 |---|---|
 | Agent | Adımları JSON'da Gherkin cümlesi olarak yazar: `{"keyword": "when", "text": "..."}`. Ortak ön koşulları `feature.background`, test verisini `test_data` içine koyar. |
 | `scripts/render_gherkin.py` | `.feature` dosyasını oluşturur: anahtar kelimeleri Türkçeye çevirir, Geçmiş ve Örnekler bloklarını, etiketleri ve kaynak yorumlarını ekler; senaryonun akışını (`UC`) `# Akış:`, `notes` ve `postconditions` alanlarını `# Not:` ve `# Son koşul:` yorumları olarak yazar; yapıyı ve tırnak içindeki beklenen metinleri denetler. |
-| `scripts/jira_export.py` | Seçim listesinde işaretli her senaryoyu bir Test Senaryosu kartı satırına yazar: ön koşullar, uçtan uca test adımları, beklenen sonuç ve test verisi ayrı sütunlarda, Geçmiş dâhil tam Gherkin açıklamada. |
+| `scripts/selection_page.py` | Seçim ekranında her senaryoyu Geçmiş dâhil tek başına okunabilen bir Gherkin bloğuyla gösterir. |
 
 ## 2. Anahtar kelimeler
 

@@ -828,8 +828,7 @@ def render_selection(doc, states):
         flow = "".join(f" · {tr(f.get('flow_type', ''))}" for f in flow_of(sc, items))
         out.append(f"- [{'x' if states[sc['id']] else ' '}] {n}. {sc['id']}{flow} · {tr(sc['priority'])} · "
                    f"{tr(sc['scenario_type'])} · {status}{tags} — {sc['title']}")
-    out += ["", "Ekrandan seçim: `<KEY>-secim.html` (işaretle → Jira CSV indir).",
-            "Komutla aktarım: `python <skill-klasörü>/scripts/jira_export.py <KEY>.json <KEY>-secim.md <KEY>-jira.csv`"]
+    out += ["", "Ekrandan seçim: `<KEY>-secim.html`."]
     return "\n".join(out) + "\n"
 
 
@@ -845,10 +844,9 @@ def main():
                         help="JSON'un yanına <KEY>.feature, <KEY>-rapor.md, <KEY>-secim.md ve <KEY>-secim.html üret")
     parser.add_argument("--report", help="üretilecek kart yeterlilik raporu (.md)")
     parser.add_argument("--selection", help="seçim listesi (.md); varsa işaretler korunur")
-    parser.add_argument("--html", help="senaryoların ekrandan seçildiği sayfa (.html); Jira CSV'sini tarayıcıda üretir")
+    parser.add_argument("--html", help="senaryoların ekrandan incelenip seçildiği sayfa (.html)")
     parser.add_argument("--open", action="store_true", help="seçim sayfasını varsayılan tarayıcıda aç")
     parser.add_argument("--card", help="parse_jira_xml.py çıktısı <KEY>-kart.json (varsayılan: JSON'un yanındaki)")
-    parser.add_argument("--issue-type", default="Test Senaryosu", help="seçim sayfasının CSV'deki kart türü")
     parser.add_argument("--check", action="store_true", help="yalnızca doğrula, dosya üretme")
     parser.add_argument("--exclude-drafts", action="store_true", help="needs_clarification senaryoları .feature'a yazma")
     args = parser.parse_args()
@@ -890,8 +888,8 @@ def main():
             written.append(f"{args.selection}: seçim listesi ({selected})")
         if args.html:
             sys.path.insert(0, str(Path(__file__).resolve().parent))
-            import jira_export  # seçim sayfası Jira CSV satırlarını jira_export ile üretir
-            Path(args.html).write_text(jira_export.selection_page(doc, states, args.issue_type), encoding="utf-8")
+            import selection_page
+            Path(args.html).write_text(selection_page.selection_page(doc, states), encoding="utf-8")
             written.append(f"{args.html}: seçim ekranı ({selected})")
             if args.open:
                 webbrowser.open(Path(args.html).resolve().as_uri())

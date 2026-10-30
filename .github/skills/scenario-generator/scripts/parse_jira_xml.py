@@ -3,8 +3,8 @@
 
 - <KEY>-kart.md   : LLM'in okuyacağı sade metin (HTML çözülmüş, yorum ve kabul
                     kriteri kimlikleri verilmiş). Ham XML'den çok daha kısadır.
-- <KEY>-kart.json : render_gherkin.py ve jira_export.py'nin JSON'u tamamlamak
-                    için kullandığı hazır veri: source, card_inventory ve
+- <KEY>-kart.json : render_gherkin.py'nin JSON'u tamamlamak için kullandığı
+                    hazır veri: source, card_inventory ve
                     kabul kriterleri (test_basis adayları). LLM bunları JSON'a
                     yeniden yazmaz.
 

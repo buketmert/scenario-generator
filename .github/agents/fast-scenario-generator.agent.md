@@ -44,12 +44,12 @@ yazmayla ilerleyen yol var.
 
 - Jira'ya bağlanma, URL açma, ek indirme veya kimlik isteme.
 - Kartta veya kullanıcının yanıtında olmayan kural, veri, ekran ya da mesaj yazma.
-- Kullanıcının seçimi olmadan Jira CSV'si üretme; seçim ekrandan yapılır.
+- Seçimi kullanıcı yapar; ekrandaki ve listedeki işaretleri kendiliğinden değiştirme.
 - `not_ready` kartta senaryo üretmeden rapor ve sorularla dur.
 
 ## Yanıt
 
 Tam JSON veya feature metnini sohbete kopyalama. Kart durumu, akış/senaryo
 sayısı, yanıtlanan ve açık sorular ve seçim ekranının yolunu
-(`test-scenarios/<KEY>/<KEY>-secim.html`) kısa ver; kullanıcıya senaryoları
-ekranda işaretleyip **Jira CSV indir** düğmesine basmasını söyle.
+(`test-scenarios/<KEY>/<KEY>-secim.html`) kısa ver; kullanıcıya Test Senaryosu
+kartı olacak senaryoları ekranda işaretlemesini söyle.
