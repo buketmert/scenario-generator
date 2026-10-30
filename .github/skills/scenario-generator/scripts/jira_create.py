@@ -43,6 +43,7 @@ DEFAULTS = {
     "oncelik": False,
     "oncelik_adlari": {"critical": "Highest", "high": "High", "medium": "Medium", "low": "Low"},
     "alanlar": {"on_kosullar": None, "test_adimlari": None, "beklenen_sonuc": None, "test_verisi": None},
+    "ek_alanlar": {},  # zorunlu sabit alanlar: {"customfield_…": {"value": "…"} | "metin"}
     "zaman_asimi_sn": 30,
 }
 TECHNIQUES = {
@@ -265,6 +266,8 @@ def issue_fields(doc, sc, cfg):
         field_id = (cfg.get("alanlar") or {}).get(name)
         if field_id:
             fields[field_id] = value
+    for field_id, value in (cfg.get("ek_alanlar") or {}).items():  # keşifte "doldurulmayan zorunlu alanlar" için
+        fields[field_id] = value
     return fields
 
 
@@ -282,9 +285,12 @@ def check_link_direction(jira, cfg, test_key, source_key):
 
     Jira, bir kartın bağlantılarında karşı kartı `inwardIssue` alanında veriyorsa
     iç (inward) açıklamayı, `outwardIssue` alanında veriyorsa çıkış açıklamasını
-    gösterir. Doğru sonuç, kaynak kartta "<kaynak> is tested by <test>"
-    görünmesidir. API'nin alanları nasıl yorumladığından bağımsızdır; ters çıkarsa
-    `baglanti.test_karti` çevrilir. Dönüş: (True | False | None, açıklama).
+    gösterir. Ölçüm (2026-10-31, Jira 10.3.16 kurumsal kurulum): bu kurulum
+    sorgulanan karta göre alanları çevirmez; link["type"] içindeki outward/inward
+    açıklamaları her kartta sabittir. Bu yüzden yönü doğrudan hangi alanın test
+    kartını taşıdığından okuruz: test kartı outwardIssue'daysa bağlantı
+    "<test> <outward> <kaynak>" biçimindedir; test_karti=outward ayarıyla doğru
+    kurulmuştur. Dönüş: (True | False | None, açıklama).
     None: denetlenemedi ya da bağlantı türü "tests / is tested by" değil.
     """
     try:
@@ -296,16 +302,16 @@ def check_link_direction(jira, cfg, test_key, source_key):
         ltype = link.get("type") or {}
         if ltype.get("name", "").lower() != wanted:
             continue
-        for side in ("inwardIssue", "outwardIssue"):
+        for side, on_left in (("outwardIssue", True), ("inwardIssue", False)):
             if (link.get(side) or {}).get("key") != test_key:
                 continue
-            label = (ltype.get("inward") if side == "inwardIssue" else ltype.get("outward")) or ""
-            note = f"{source_key} kartında '{label} {test_key}' görünüyor"
-            if label.strip().lower() in TESTS_INWARD:
+            label = (ltype.get("outward") if on_left else ltype.get("inward")) or ""
+            note = f"{source_key} kartında '{test_key} {label} {source_key}' bağlantısı görünüyor" if on_left \
+                else f"{source_key} kartında '{label} {test_key}' görünüyor"
+            expected_outward = cfg["baglanti"].get("test_karti", "outward") == "outward"
+            if on_left == expected_outward:
                 return True, note
-            if label.strip().lower() in TESTS_OUTWARD:
-                return False, note
-            return None, note  # "tests" türü değil (Relates gibi): yön anlamsız
+            return False, note
     return None, f"{source_key} kartında {test_key} bağlantısı bulunamadı"
 
 

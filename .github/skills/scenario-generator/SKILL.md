@@ -348,6 +348,7 @@ değişen senaryolar varsayılana döner; script bunları uyarı olarak yazar.
    | `etiketler` | Akış türü, pozitif/negatif, kaynak kart ve senaryo kimliği etiket olarak yazılsın mı |
    | `oncelik` | Risk seviyesi Jira önceliğine yazılsın mı (`oncelik_adlari` ile) |
    | `alanlar` | Kartta özel alanlar varsa kimlikleri: `on_kosullar`, `test_adimlari`, `beklenen_sonuc`, `test_verisi` (`customfield_…`); `null` olanlar yalnızca açıklamaya yazılır |
+   | `ek_alanlar` | Keşif "doldurulmayan zorunlu alanlar" uyarısı verirse sabit değerleri: `{"customfield_…": {"value": "…"}}` (seçim listesi alanı) veya `"metin"` |
 
 4. **Deneme:** `jira_create.py … --deneme` kart açmadan gönderilecek alanları
    gösterir.

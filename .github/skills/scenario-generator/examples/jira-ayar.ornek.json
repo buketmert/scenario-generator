@@ -8,5 +8,6 @@
   "oncelik": false,
   "oncelik_adlari": {"critical": "Highest", "high": "High", "medium": "Medium", "low": "Low"},
   "alanlar": {"on_kosullar": null, "test_adimlari": null, "beklenen_sonuc": null, "test_verisi": null},
+  "ek_alanlar": {},
   "zaman_asimi_sn": 30
 }
