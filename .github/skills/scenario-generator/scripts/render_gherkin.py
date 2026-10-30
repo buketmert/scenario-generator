@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """scenario-generator JSON çıktısını doğrular; manuel test için Türkçe Gherkin
-(.feature) dosyası ve kart yeterlilik raporu (.md) üretir.
+(.feature) dosyası, kart yeterlilik raporu (.md) ve Jira'ya aktarılacak
+senaryoların seçim listesini (.md) üretir.
 
 Kullanım:
-    python scripts/render_gherkin.py cikti.json cikti.feature --report rapor.md
+    python scripts/render_gherkin.py cikti.json cikti.feature --report rapor.md --selection secim.md
     python scripts/render_gherkin.py cikti.json --check            # yalnızca doğrula
     python scripts/render_gherkin.py cikti.json cikti.feature --exclude-drafts
+
+Seçim listesi varsa işaretler korunur; yalnızca yeni senaryolar ve başlığı
+değişen senaryolar varsayılana (hazır: işaretli, taslak: işaretsiz) döner.
+İşaretli senaryolar scripts/jira_export.py ile Jira CSV'sine aktarılır.
 
 Çıkış kodu: 0 = hata yok, 1 = doğrulama hatası, 2 = kullanım/dosya hatası.
 """
@@ -45,7 +50,11 @@ LABELS = {
     "covered": "kapsandı", "partially_covered": "kısmen", "not_covered": "kapsanmadı",
     "product_owner": "ürün sahibi", "business_analyst": "iş analisti", "developer": "geliştirici",
     "tester": "test uzmanı", "designer": "tasarımcı", "other": "diğer", "unknown": "bilinmiyor",
+    "critical": "kritik", "high": "yüksek", "medium": "orta", "low": "düşük",
+    "positive": "pozitif", "negative": "negatif", "needs_clarification": "taslak",
 }
+# Seçim listesinin bir satırı: "- [x] 3. TS-ESUBE-2041-003 · yüksek · ... — Başlık"
+SELECTION_RE = re.compile(r"^\s*[-*]\s*\[([ xX])\]\s*(?:\d+\.\s*)?(TS-[A-Z][A-Z0-9]+-[0-9]+-[0-9]{3})\b(.*)$")
 
 
 def tr(value):
@@ -398,6 +407,47 @@ def render_steps(steps, indent, values=None):
             for s in steps]
 
 
+def render_scenario(sc, questions, assumptions, comments=True):
+    """Tek senaryonun Gherkin satırları, etiketlerden son adıma kadar.
+
+    comments=False: kaynak, taslak, not, son koşul ve veri yorumları yazılmaz
+    (Jira açıklamasında bunlar ayrı başlıklar altında verilir).
+    """
+    draft = sc["status"] == "needs_clarification"
+    tags = [f"@{sc['id']}", "@pozitif" if sc["scenario_type"] == "positive" else "@negatif"]
+    tags += [t for t in sc.get("tags", []) if t not in tags]
+    if draft:
+        tags.append("@taslak")
+    data_sets = sc["test_data"]["data_sets"]
+    outline = len(data_sets) > 1
+    out = ["  " + " ".join(tags), f"  {'Senaryo Taslağı' if outline else 'Senaryo'}: {sc['title']}"]
+    if comments:
+        t = sc["traceability"]
+        trace = f"# Kaynak: {', '.join(t['basis_ids'])} | {', '.join(t['test_condition_ids'])}"
+        if t["coverage_item_ids"]:
+            trace += f" | {', '.join(t['coverage_item_ids'])}"
+        out.append(f"    {trace}")
+        if draft:
+            for q in sc.get("open_question_ids", []):
+                out.append(f"    # Taslak — açık soru {q}: {questions[q]['question']}")
+            for a in sc.get("assumption_ids", []):
+                out.append(f"    # Varsayım {a}: {assumptions[a]['statement']}")
+        for note in sc.get("notes", []):
+            out.append(f"    # Not: {note}")
+        for post in sc.get("postconditions", []):
+            out.append(f"    # Son koşul: {post}")
+    if outline:
+        params = [p["name"] for p in sc["test_data"]["parameters"]]
+        out += render_steps(sc["steps"], "    ")
+        out += ["", "    Örnekler:"]
+        out += table([["durum"] + params] + [[ds["label"]] + [ds["values"].get(p) for p in params] for ds in data_sets], "      ")
+    else:
+        if data_sets and comments:
+            out.append(f"    # Veri: {data_sets[0]['label']}")
+        out += render_steps(sc["steps"], "    ", data_sets[0]["values"] if data_sets else {})
+    return out
+
+
 def render_feature(doc, exclude_drafts, rep):
     src, feat, env = doc["source"], doc["feature"], doc["test_environment"]
     open_q = [q["id"] for q in doc["readiness"]["clarification_questions"]]
@@ -423,39 +473,10 @@ def render_feature(doc, exclude_drafts, rep):
 
     rendered = 0
     for sc in doc["test_scenarios"]:
-        draft = sc["status"] == "needs_clarification"
-        if draft and exclude_drafts:
+        if sc["status"] == "needs_clarification" and exclude_drafts:
             rep.warn(sc["id"], "taslak senaryo --exclude-drafts nedeniyle üretilmedi")
             continue
-        tags = [f"@{sc['id']}", "@pozitif" if sc["scenario_type"] == "positive" else "@negatif"]
-        tags += [t for t in sc.get("tags", []) if t not in tags]
-        if draft:
-            tags.append("@taslak")
-        data_sets = sc["test_data"]["data_sets"]
-        outline = len(data_sets) > 1
-        t = sc["traceability"]
-        trace = f"# Kaynak: {', '.join(t['basis_ids'])} | {', '.join(t['test_condition_ids'])}"
-        if t["coverage_item_ids"]:
-            trace += f" | {', '.join(t['coverage_item_ids'])}"
-        out += ["", "  " + " ".join(tags),
-                f"  {'Senaryo Taslağı' if outline else 'Senaryo'}: {sc['title']}",
-                f"    {trace}"]
-        if draft:
-            for q in sc.get("open_question_ids", []):
-                out.append(f"    # Taslak — açık soru {q}: {questions[q]['question']}")
-            for a in sc.get("assumption_ids", []):
-                out.append(f"    # Varsayım {a}: {assumptions[a]['statement']}")
-        for note in sc.get("notes", []):
-            out.append(f"    # Not: {note}")
-        if outline:
-            params = [p["name"] for p in sc["test_data"]["parameters"]]
-            out += render_steps(sc["steps"], "    ")
-            out += ["", "    Örnekler:"]
-            out += table([["durum"] + params] + [[ds["label"]] + [ds["values"].get(p) for p in params] for ds in data_sets], "      ")
-        else:
-            if data_sets:
-                out.append(f"    # Veri: {data_sets[0]['label']}")
-            out += render_steps(sc["steps"], "    ", data_sets[0]["values"] if data_sets else {})
+        out += [""] + render_scenario(sc, questions, assumptions)
         rendered += 1
     if not rendered:
         out += ["", f"  # Üretilecek senaryo yok (kart durumu: {doc['readiness']['status']}). Yeterlilik raporuna bakın."]
@@ -551,6 +572,71 @@ def render_report(doc):
     return "\n".join(out) + "\n"
 
 
+# ------------------------------------------------------------------ seçim listesi
+
+def execution_order(scenarios):
+    """Koşum sırası: önce @smoke, sonra risk seviyesi (kritikten düşüğe), sonra ID."""
+    return sorted(scenarios, key=lambda s: ("@smoke" not in s.get("tags", []),
+                                            -RISK_ORDER.index(s["priority"]), s["id"]))
+
+
+def read_selection(path):
+    """Seçim listesindeki satırlar: {senaryo ID: (işaretli mi, başlık)} ve tekrar eden ID'ler."""
+    states, dupes = {}, []
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        m = SELECTION_RE.match(line)
+        if not m:
+            continue
+        sid, rest = m.group(2), m.group(3)
+        if sid in states:
+            dupes.append(sid)
+        title = rest.split(" — ", 1)[1].strip() if " — " in rest else ""
+        states[sid] = (m.group(1) != " ", title)
+    return states, dupes
+
+
+def render_selection(doc, previous, rep):
+    """Jira'ya aktarılacak senaryoların işaretlenebilir listesi.
+
+    Önceki listedeki işaret, aynı ID ve aynı başlıkla korunur. Başlığı değişen
+    ID artık başka bir senaryo olabilir; onun işareti varsayılana döner.
+    """
+    src = doc["source"]
+    scenarios = execution_order(doc["test_scenarios"])
+    out = [
+        f"# Jira'ya aktarılacak senaryolar — {src['jira_key']}",
+        "",
+        f"**Kart:** {src['summary']}",
+        "",
+        "Jira'ya Test kaydı olarak eklenecek senaryoların kutusunu işaretleyin (`[x]`),",
+        "eklenmeyecekleri boş bırakın (`[ ]`). Taslak senaryolar bloklayıcı soru",
+        "yanıtlanana kadar işaretsiz gelir. Sıra koşum sırasıdır: önce `@smoke`, sonra",
+        "risk seviyesi.",
+        "",
+    ]
+    if not scenarios:
+        out.append(f"Aktarılacak senaryo yok (kart durumu: {tr(doc['readiness']['status'])}).")
+    selected = 0
+    for n, sc in enumerate(scenarios, 1):
+        draft = sc["status"] == "needs_clarification"
+        checked = not draft
+        if sc["id"] in previous:
+            was_checked, old_title = previous[sc["id"]]
+            if old_title == sc["title"]:
+                checked = was_checked
+            else:
+                rep.warn(f"seçim {sc['id']}", "başlık değişti; işaret varsayılana döndü")
+        selected += checked
+        status = f"taslak ({', '.join(sc.get('open_question_ids', []))})" if draft else "hazır"
+        tags = "".join(f" · {t}" for t in sc.get("tags", []))
+        out.append(f"- [{'x' if checked else ' '}] {n}. {sc['id']} · {tr(sc['priority'])} · "
+                   f"{tr(sc['scenario_type'])} · {status}{tags} — {sc['title']}")
+    for sid in sorted(set(previous) - {s["id"] for s in scenarios}):
+        rep.warn(f"seçim {sid}", "JSON'da artık yok; listeden çıkarıldı")
+    out += ["", "Aktarım: `python <skill-klasörü>/scripts/jira_export.py <KEY>.json <KEY>-secim.md <KEY>-jira.csv`"]
+    return "\n".join(out) + "\n", selected
+
+
 def main():
     # Windows konsolunda Türkçe karakterlerin yazdırılabilmesi için
     for stream in (sys.stdout, sys.stderr):
@@ -560,11 +646,12 @@ def main():
     parser.add_argument("input", help="scenario-generator JSON çıktısı")
     parser.add_argument("output", nargs="?", help="üretilecek .feature dosyası")
     parser.add_argument("--report", help="üretilecek kart yeterlilik raporu (.md)")
+    parser.add_argument("--selection", help="Jira'ya aktarılacak senaryoların seçim listesi (.md); varsa işaretler korunur")
     parser.add_argument("--check", action="store_true", help="yalnızca doğrula, dosya üretme")
     parser.add_argument("--exclude-drafts", action="store_true", help="needs_clarification senaryoları üretme")
     args = parser.parse_args()
-    if not args.check and not args.output and not args.report:
-        parser.error("çıktı dosyası, --report veya --check verilmeli")
+    if not args.check and not args.output and not args.report and not args.selection:
+        parser.error("çıktı dosyası, --report, --selection veya --check verilmeli")
 
     try:
         schema = load_json(SCHEMA_PATH)
@@ -585,6 +672,15 @@ def main():
         if args.report:
             Path(args.report).write_text(render_report(doc), encoding="utf-8")
             written.append(f"{args.report}: yeterlilik raporu")
+        if args.selection:
+            previous = {}
+            if Path(args.selection).exists():
+                previous, dupes = read_selection(args.selection)
+                for sid in sorted(set(dupes)):
+                    rep.warn(f"seçim {sid}", "listede birden fazla kez geçiyor; son satırdaki işaret kullanıldı")
+            text, selected = render_selection(doc, previous, rep)
+            Path(args.selection).write_text(text, encoding="utf-8")
+            written.append(f"{args.selection}: seçim listesi ({selected}/{len(doc['test_scenarios'])} işaretli)")
 
     for line in rep.errors + rep.warnings:
         print(line, file=sys.stderr)

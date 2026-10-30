@@ -12,7 +12,8 @@ Bu dosya yalnızca okunabilirlik ve tutarlılık için temel kuralları içerir.
 | Kim | Ne yapar |
 |---|---|
 | Agent | Adımları JSON'da Gherkin cümlesi olarak yazar: `{"keyword": "when", "text": "..."}`. Ortak ön koşulları `feature.background`, test verisini `test_data` içine koyar. |
-| `scripts/render_gherkin.py` | `.feature` dosyasını oluşturur: anahtar kelimeleri Türkçeye çevirir, Geçmiş ve Örnekler bloklarını, etiketleri ve kaynak yorumlarını ekler; yapıyı ve tırnak içindeki beklenen metinleri denetler. |
+| `scripts/render_gherkin.py` | `.feature` dosyasını oluşturur: anahtar kelimeleri Türkçeye çevirir, Geçmiş ve Örnekler bloklarını, etiketleri ve kaynak yorumlarını ekler; `notes` ve `postconditions` alanlarını `# Not:` ve `# Son koşul:` yorumları olarak yazar; yapıyı ve tırnak içindeki beklenen metinleri denetler. |
+| `scripts/jira_export.py` | Seçim listesinde işaretli her senaryoyu, Geçmiş adımları dâhil tek başına okunabilen bir Gherkin bloğuyla Jira CSV satırına yazar. |
 
 ## 2. Anahtar kelimeler
 

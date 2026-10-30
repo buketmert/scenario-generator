@@ -60,8 +60,19 @@ puanlamaya girdidir; puanın gerekçesi `rationale` alanına yazılır.
 | 1–2 | `low` |
 
 Senaryonun `priority` değeri, bağlı olduğu test koşullarının en yüksek risk
-seviyesidir. Kart başına en kritik mutlu yol senaryoları (1–2 adet) `@smoke`
-etiketi alır.
+seviyesidir.
+
+**`@smoke` (duman testi).** Kart başına 1–2 mutlu yol senaryosu alır. Seçerken
+şu sorulara bakılır; "evet" yanıtı çok olan yol önce gelir:
+
+1. Kullanıcı bu akış olmadan işini yapamaz mı?
+2. Akış para hareketi, ücret veya gelir üretiyor mu?
+3. Akış kişisel veya hassas veri işliyor mu?
+4. Akış kartın en sık kullanılacak yolu mu?
+
+`@smoke` senaryoları koşum sırasında ve Jira seçim listesinde ilk sırada yer
+alır; ardından senaryolar risk seviyesine göre (kritikten düşüğe) sıralanır.
+Sıralamayı script yapar.
 
 ### Senaryo sayısı ve test derinliği
 
@@ -218,13 +229,18 @@ soru yazılır. Kaç tane seçileceği, kartın en yüksek risk seviyesine göre
 
 | Alan | Olası hatalar |
 |---|---|
-| Metin girdisi | Boş, yalnızca boşluk, baş/sondaki boşluk, çok uzun metin, özel karakter, HTML/script içeriği, tek tırnak, emoji |
+| Metin girdisi | Boş, yalnızca boşluk, baş/sondaki boşluk, çok uzun metin, özel karakter, HTML/script içeriği, tek tırnak, SQL ifadesi (`' OR '1'='1`), emoji |
 | Türkçe | ç ğ ı İ ö ş ü; büyük/küçük harf dönüşümü (i/İ, ı/I); sıralama ve arama |
 | Sayı | 0, negatif, ondalık ayırıcı (virgül/nokta), binlik ayırıcı, çok büyük değer, yuvarlama |
 | Tarih ve saat | Geçmiş/gelecek, 29 Şubat, ay sonu, yıl dönümü, gece yarısı, saat dilimi |
 | Etkileşim | Çift tıklama, tekrar gönderim, geri tuşu, sayfa yenileme, iki sekmede aynı işlem, oturum zaman aşımı, ağ kesintisi |
-| Yetki | Yetkisiz rol, oturumsuz erişim, URL'deki ID'yi değiştirerek başka kullanıcının verisine erişim |
+| Yetki | Yetkisiz rol, oturumsuz erişim, düşük yetkili rolle yetkili işlem (yetki yükseltme), URL'deki ID'yi değiştirerek başka kullanıcının verisine erişim |
 | Veri | Mükerrer kayıt, silinmiş veya pasif kayıt, ilişkili kaydın olmaması, eşzamanlı güncelleme |
+| Entegrasyon | Harici servisin (EFT/FAST, SMS, ödeme sağlayıcı) zaman aşımına düşmesi veya hata dönmesi, boş ya da beklenmeyen yanıt, aynı isteğin tekrar gönderilmesi |
+
+Entegrasyon satırı yalnızca kart harici bir sisteme bağımlılık içeriyorsa
+seçilir. Bu durumlarda kullanıcıya gösterilecek mesaj ve işlemin durumu çoğu
+kartta tanımlı değildir; tanımlı değilse senaryo yerine soru yazılır.
 
 ### 4.7 Kontrol listesine dayalı test (fonksiyonel olmayan)
 
@@ -275,6 +291,15 @@ senaryoyu uygulayabilmeli ve sonucu değerlendirebilmelidir. Gherkin biçimi
     `@taslak` script tarafından eklenir.
 12. **Notlar.** Test uzmanının bilmesi gereken teknik ayrıntılar veya dikkat
     edilecek noktalar adımlara değil `notes` alanına yazılır.
+13. **Son koşullar.** Senaryo sistemde kalıcı bir değişiklik bırakıyorsa
+    (para hareketi, kayıt oluşturma veya silme, durum değişikliği, limit
+    kullanımı) bu durum ve gerekiyorsa temizlik `postconditions` alanına
+    yazılır: "Gönderici test hesabından gerçek bir EFT işlemi oluşur; tekrar
+    koşmadan önce bakiye kontrol edilmelidir." Son koşul beklenen sonuç
+    değildir. Ürünün ne yapması gerektiği `O zaman` adımında doğrulanır; son
+    koşul yalnızca testi yeniden koşabilmek ve ortamı temiz bırakmak içindir.
+    Kartta olmayan bir ürün davranışını iddia etmez. Kalıcı değişiklik
+    bırakmayan senaryoda alan yazılmaz.
 
 ## 6. Test seviyesi ve tipi
 

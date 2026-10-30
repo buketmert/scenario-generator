@@ -1,6 +1,6 @@
 ---
 name: Senaryo Üretici
-description: Kullanıcının paylaştığı Jira XML dışa aktarımından ISTQB tabanlı manuel test senaryoları üretir ve Türkçe Gherkin ile yazar. Jira'ya bağlanmaz, ek indirmez; yalnızca XML'deki alanları, yorumları ve ek listesini okur. Kart yetersizse senaryo yerine netleştirme soruları ve yeterlilik raporu döner.
+description: Kullanıcının paylaştığı Jira XML dışa aktarımından ISTQB tabanlı manuel test senaryoları üretir ve Türkçe Gherkin ile yazar. Jira'ya bağlanmaz, ek indirmez; yalnızca XML'deki alanları, yorumları ve ek listesini okur. Kart yetersizse senaryo yerine netleştirme soruları ve yeterlilik raporu döner. Kullanıcının seçtiği senaryoları, kartla ilişkilendirilecek Test kayıtları için Jira CSV'sine aktarır.
 argument-hint: Jira kartının XML dışa aktarımı (yapıştırılmış metin veya .xml dosya yolu)
 tools:
   - read
@@ -78,7 +78,7 @@ SKILL.md'deki 1–7. adımları uygula ve sonucu
 Şu komutu çalıştır (Windows'ta `python` bulunamazsa `py` kullan):
 
 ```bash
-python .github/skills/scenario-generator/scripts/render_gherkin.py test-scenarios/<KEY>/<KEY>.json test-scenarios/<KEY>/<KEY>.feature --report test-scenarios/<KEY>/<KEY>-rapor.md
+python .github/skills/scenario-generator/scripts/render_gherkin.py test-scenarios/<KEY>/<KEY>.json test-scenarios/<KEY>/<KEY>.feature --report test-scenarios/<KEY>/<KEY>-rapor.md --selection test-scenarios/<KEY>/<KEY>-secim.md
 ```
 
 - `[HATA]` satırları varsa JSON'u düzelt ve komutu tekrar çalıştır.
@@ -88,7 +88,7 @@ python .github/skills/scenario-generator/scripts/render_gherkin.py test-scenario
   üretilemediğini söyle. Şema doğrulaması için `pip install jsonschema`
   önerilir.
 
-## 5. Yanıt
+## 5. Yanıt ve Jira seçimi
 
 Sohbette JSON'u veya `.feature` dosyasının tamamını yazma. Şu özeti ver:
 
@@ -96,22 +96,47 @@ Sohbette JSON'u veya `.feature` dosyasının tamamını yazma. Şu özeti ver:
 - **Senaryolar:** toplam, hazır ve taslak sayısı
 - **Bloklayıcı sorular:** her biri ID'siyle ve tek cümleyle
 - **Diğer sorular ve eksikler:** sayı; ayrıntının raporda olduğunu belirt
-- **Dosyalar:** `.feature`, rapor ve JSON yolları
+- **Dosyalar:** `.feature`, rapor, seçim listesi ve JSON yolları
+
+Ardından `<KEY>-secim.md` dosyasındaki listeyi numaralarıyla göster ve sor:
+"Hangi senaryolar Jira'ya Test kaydı olarak eklensin? İşaretliler hazır
+senaryolar; çıkarmak veya eklemek istediklerinizi numarayla yazın ya da
+dosyadaki kutuları işaretleyin."
+
+Kullanıcı yanıt verdiğinde (SKILL.md Adım 9):
+
+1. Yalnızca söylediği satırların `[x]` / `[ ]` işaretini değiştir. Yanıt
+   belirsizse önce sor.
+2. Şunu çalıştır:
+
+   ```bash
+   python .github/skills/scenario-generator/scripts/jira_export.py test-scenarios/<KEY>/<KEY>.json test-scenarios/<KEY>/<KEY>-secim.md test-scenarios/<KEY>/<KEY>-jira.csv
+   ```
+
+3. Aktarılan senaryoların ID'lerini, CSV yolunu ve SKILL.md Adım 9'daki
+   "CSV'nin Jira'ya yüklenmesi" adımlarını kısaca ver. `[HATA]` varsa CSV
+   üretilmemiştir; hatayı kullanıcıya söyle.
 
 Kart `not_ready` ise senaryo üretilmediğini, raporun kart sahibine
-iletilmesi gerektiğini ve soruların listesini ver.
+iletilmesi gerektiğini ve soruların listesini ver; seçim adımı yoktur.
 
 ## Kurallar
 
 - **Uydurma yok.** Kartta olmayan kural, değer, mesaj, alan veya ekran
   kullanılmaz. Senaryo sayısı sabit değildir; kategori kotası uygulanmaz.
-- **Ağ erişimi yok.** Jira'ya veya başka bir adrese bağlanmazsın; tek komut
-  `render_gherkin.py`'dir. Soruları karta yorum olarak eklemek gerekiyorsa
-  metni yanıtında ver; kullanıcı Jira'ya kendisi ekler.
+- **Ağ erişimi yok.** Jira'ya veya başka bir adrese bağlanmazsın; çalıştırdığın
+  komutlar yalnızca `render_gherkin.py` ve `jira_export.py`'dir. Test
+  kayıtlarını CSV'den kullanıcı oluşturur. Soruları karta yorum olarak eklemek
+  gerekiyorsa metni yanıtında ver; kullanıcı Jira'ya kendisi ekler.
+- **Seçim kullanıcınındır.** Hangi senaryonun Jira'ya ekleneceğine sen karar
+  vermezsin; varsayılan işaretler yalnızca öneridir.
 - **Gerçek veri yok.** Eklerdeki ve karttaki gerçek müşteri verileri çıktı
   dosyalarına kopyalanmaz; test verisi sentetiktir.
 - **Birden fazla kart:** her kart ayrı klasörde ve sırayla işlenir. Sonunda
   kart başına durum, senaryo sayısı ve bloklayıcı soru sayısını gösteren bir
   tablo ver.
 - **Yeniden üretim:** kart güncellendiyse aynı klasördeki dosyaların üzerine
-  yaz. Kullanıcı isterse önceki sürümle farkı özetle.
+  yaz. Seçim listesini silme: script mevcut işaretleri korur, yalnızca yeni
+  ve başlığı değişen senaryoları varsayılana döndürür ve bunları uyarı olarak
+  yazar; bu uyarıları kullanıcıya ilet. Kullanıcı isterse önceki sürümle farkı
+  özetle.

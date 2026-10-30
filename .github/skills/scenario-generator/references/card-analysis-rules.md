@@ -173,7 +173,7 @@ Her kart, `<rss><channel>` altındaki bir `<item>` öğesidir. Birden fazla
 | `<key>` | `source.jira_key` | |
 | `<summary>` | `summary` | `<title>` içindeki `[KEY]` ön eki kullanılmaz |
 | `<link>` | `source.url` | Yalnızca kaydedilir, açılmaz |
-| `<type>` | `issue_type` | Story / Hikâye → `story`, Task / Görev → `task`, Bug / Hata → `bug`, Sub-task / Alt Görev → `sub_task`, Epic → `epic`, diğerleri → `other` |
+| `<type>` | `issue_type` | Story / Hikâye → `story`, Task / Görev → `task`, Bug / Hata → `bug`, Sub-task / Alt Görev → `sub_task`, Epic → `epic`, Cross-functional ve diğerleri → `other` (akışı story gibidir; yalnızca `bug` farklı akış alır) |
 | `<description>` | `description` | HTML olarak kaçışlıdır; bkz. §9.2 |
 | `<environment>` | `environment` | Boşsa `empty` |
 | `<priority>` | `priority`, `source.jira_priority` | |

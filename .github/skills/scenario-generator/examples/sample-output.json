@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.0.0",
+  "schema_version": "2.1.0",
   "generated_at": "2026-10-25T23:30:00+03:00",
   "source": {
     "jira_key": "ESUBE-2041",
@@ -803,6 +803,9 @@
           }
         ]
       },
+      "postconditions": [
+        "Gönderici test hesabından gerçek bir EFT işlemi oluşur. Senaryo tekrar koşulmadan önce bakiyenin ön koşuldaki tutarı karşıladığı kontrol edilmelidir."
+      ],
       "tags": [
         "@smoke"
       ]
@@ -915,7 +918,10 @@
             }
           }
         ]
-      }
+      },
+      "postconditions": [
+        "Her veri seti gönderici test hesabından ayrı bir EFT işlemi oluşturur; dört veri setinin toplamı için bakiye hazırlanmalıdır."
+      ]
     },
     {
       "id": "TS-ESUBE-2041-003",
@@ -1362,6 +1368,9 @@
       },
       "notes": [
         "Beklenen sonuç AC-04'e dayanır: tek gönderim için tek başarı mesajı ve tek dekont numarası."
+      ],
+      "postconditions": [
+        "Gönderici test hesabından EFT işlemi oluşur. Senaryo tekrar koşulmadan önce bakiyenin ön koşuldaki tutarı karşıladığı kontrol edilmelidir."
       ]
     }
   ],

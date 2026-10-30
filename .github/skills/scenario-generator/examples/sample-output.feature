@@ -16,6 +16,7 @@
   @TS-ESUBE-2041-001 @pozitif @smoke
   Senaryo: Geçerli bilgilerle gönderilen EFT başarıyla tamamlanır ve dekont numarası gösterilir
     # Kaynak: AC-01, BR-02, AC-02, AC-03, BR-01, AC-04, UI-01 | COND-01, COND-02, COND-03, COND-04 | EP-REQ-V, EP-IBAN-V, BVA-IBAN-26, EP-AMT-V
+    # Son koşul: Gönderici test hesabından gerçek bir EFT işlemi oluşur. Senaryo tekrar koşulmadan önce bakiyenin ön koşuldaki tutarı karşıladığı kontrol edilmelidir.
     # Veri: Geçerli IBAN (TR, 26 karakter), tutar 1.000,00
     Diyelim ki gönderici hesabımda en az "1.000,00" TL kullanılabilir bakiye var
     Eğer ki Alıcı IBAN alanına "TR330006100519786457841326" yazarsam
@@ -28,6 +29,7 @@
   @TS-ESUBE-2041-002 @pozitif
   Senaryo Taslağı: Tutar limitlerde veya limitlerin hemen içinde olduğunda EFT başarıyla tamamlanır
     # Kaynak: AC-03, BR-01, AC-04 | COND-03, COND-04 | BVA-AMT-1.00, BVA-AMT-1.01, BVA-AMT-49999.99, BVA-AMT-50000.00
+    # Son koşul: Her veri seti gönderici test hesabından ayrı bir EFT işlemi oluşturur; dört veri setinin toplamı için bakiye hazırlanmalıdır.
     Diyelim ki gönderici hesabımda en az "<tutar>" TL kullanılabilir bakiye var
     Eğer ki Alıcı IBAN alanına "<iban>" yazarsam
     Ve Alıcı Adı Soyadı alanına "<ad_soyad>" yazarsam
@@ -108,6 +110,7 @@
   Senaryo: Gönder butonuna art arda iki kez basıldığında tek EFT işlemi oluşur
     # Kaynak: AC-04 | COND-04 | EG-01
     # Not: Beklenen sonuç AC-04'e dayanır: tek gönderim için tek başarı mesajı ve tek dekont numarası.
+    # Son koşul: Gönderici test hesabından EFT işlemi oluşur. Senaryo tekrar koşulmadan önce bakiyenin ön koşuldaki tutarı karşıladığı kontrol edilmelidir.
     # Veri: Geçerli bilgiler, tutar 1.000,00
     Diyelim ki gönderici hesabımda en az "1.000,00" TL kullanılabilir bakiye var
     Eğer ki Alıcı IBAN alanına "TR330006100519786457841326" yazarsam

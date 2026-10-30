@@ -23,7 +23,10 @@
     "out_of_scope"
   ],
   "properties": {
-    "schema_version": { "const": "2.0.0" },
+    "schema_version": {
+      "description": "Yeni çıktılar 2.1.0 yazar. 2.0.0 çıktıları da geçerlidir: 2.1.0 yalnızca isteğe bağlı postconditions alanını ekledi.",
+      "enum": ["2.1.0", "2.0.0"]
+    },
     "generated_at": { "type": "string", "format": "date-time" },
     "source": {
       "description": "Analiz edilen Jira kartı.",
@@ -580,6 +583,11 @@
         "tags": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/tag" } },
         "notes": {
           "description": "Test uzmanı için not; yorum satırı olarak yazılır.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "postconditions": {
+          "description": "Testin sistemde bıraktığı kalıcı durum ve gerekiyorsa temizlik veya geri alma. Beklenen sonuç değildir (o 'O zaman' adımıdır); '# Son koşul:' yorumu olarak yazılır.",
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
         },

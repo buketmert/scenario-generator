@@ -1,6 +1,6 @@
 ---
 name: scenario-generator
-description: Jira kartının (story, task, bug) kullanıcının paylaştığı XML dışa aktarımından ISTQB tabanlı manuel test senaryoları üretir ve Türkçe Gherkin ile yazar. Jira'ya bağlanmaz, ek indirmez. XML'deki tüm alanları (açıklama, kabul kriterleri, ortam, yorumlar, ek listesi, bağlı kartlar, özel alanlar) okur, kartın senaryo üretmeye yeterli olup olmadığını değerlendirir, eksik ve çelişkili bilgiler için soru üretir. Çıktı references/output-schema.json formatında tek bir JSON'dur; .feature dosyası ve kart yeterlilik raporu scripts/render_gherkin.py ile oluşturulur. Jira XML'i, kart içeriği veya kullanıcı hikâyesi verilip test senaryosu, test case, test durumu ya da Gherkin/feature istendiğinde kullan.
+description: Jira kartının (story, task, bug) kullanıcının paylaştığı XML dışa aktarımından ISTQB tabanlı manuel test senaryoları üretir ve Türkçe Gherkin ile yazar. Jira'ya bağlanmaz, ek indirmez. XML'deki tüm alanları (açıklama, kabul kriterleri, ortam, yorumlar, ek listesi, bağlı kartlar, özel alanlar) okur, kartın senaryo üretmeye yeterli olup olmadığını değerlendirir, eksik ve çelişkili bilgiler için soru üretir. Çıktı references/output-schema.json formatında tek bir JSON'dur; .feature dosyası, kart yeterlilik raporu ve seçim listesi scripts/render_gherkin.py ile oluşturulur; kullanıcının seçtiği senaryolar scripts/jira_export.py ile Jira Test kaydı CSV'sine aktarılır. Jira XML'i, kart içeriği veya kullanıcı hikâyesi verilip test senaryosu, test case, test durumu ya da Gherkin/feature istendiğinde kullan.
 ---
 
 # Scenario Generator
@@ -16,8 +16,11 @@ analiz → tasarım → uygulama adımlarını izleyerek **manuel test senaryola
 - **Agent'ın çıktısı:** tek bir JSON belgesi. Kart envanteri, yeterlilik,
   test esası, çelişkiler, senaryolar ve kapsam burada tutulur. Senaryo
   adımları Türkçe Gherkin cümleleridir.
-- **Script'in çıktıları:** `.feature` dosyası (test uzmanı için) ve kart
-  yeterlilik raporu (ürün sahibi / analist için).
+- **Script'in çıktıları:** `.feature` dosyası (test uzmanı için), kart
+  yeterlilik raporu (ürün sahibi / analist için) ve Jira'ya aktarılacak
+  senaryoların seçim listesi. Kullanıcının işaretlediği senaryolar
+  `jira_export.py` ile Jira CSV'sine yazılır; her biri kaynak kartla
+  ilişkilendirilecek bir Test kaydıdır.
 
 Adım kalıpları için şu an kurumsal bir standart yoktur; Gherkin cümleleri
 serbesttir ve `gherkin-format-rules.md`'deki okunabilirlik kurallarına uyar.
@@ -30,9 +33,10 @@ serbesttir ve `gherkin-format-rules.md`'deki okunabilirlik kurallarına uyar.
 | `references/test-design-rules.md` | Adım 3–5'te: risk, test derinliği, teknik seçimi, teknikler, senaryo yazım kuralları |
 | `references/gherkin-format-rules.md` | Adım 5'te: Gherkin anahtar kelimeleri, cümle yazımı, Örnekler, Geçmiş |
 | `references/output-schema.json` | Adım 6–8'de: çıktının tek geçerli formatı |
-| `scripts/render_gherkin.py` | Adım 8'de: JSON'u doğrular, `.feature` ve yeterlilik raporu üretir |
+| `scripts/render_gherkin.py` | Adım 8'de: JSON'u doğrular, `.feature`, yeterlilik raporu ve seçim listesi üretir |
+| `scripts/jira_export.py` | Adım 9'da: seçim listesinde işaretli senaryolardan Jira CSV'si üretir |
 | `examples/sample-output.json` | Biçim ve ayrıntı düzeyi örneği. İçeriği kopyalanmaz. Örnekte üç ek kullanıcı tarafından dosya olarak (video okunamamıştır), epic de ayrı bir XML olarak paylaşılmıştır; paylaşılmayan ek ve bağlı kart `not_provided` / `not_accessible` olur |
-| `examples/sample-output.feature`, `examples/sample-report.md` | Örnek JSON'dan script ile üretilmiş çıktılar |
+| `examples/sample-output.feature`, `examples/sample-report.md`, `examples/sample-secim.md`, `examples/sample-jira.csv` | Örnek JSON'dan script'lerle üretilmiş çıktılar (seçim listesi varsayılan işaretlerle) |
 
 ## İş akışı
 
@@ -126,6 +130,11 @@ uygulanmaz; sayı kapsam öğelerinden ve risk derinliğinden çıkar.
 - Beklenen mesajları tırnak içinde, kaynaktaki haliyle yaz.
 - Farklı verilerle tekrarlanan senaryoda değerleri `<parametre>` ile yaz ve
   veri setlerine koy.
+- Senaryo kalıcı bir değişiklik bırakıyorsa (para hareketi, kayıt, durum
+  değişikliği) `postconditions` alanına bıraktığı durumu ve temizliği yaz
+  (`test-design-rules.md` §5 madde 13).
+- Duman testi senaryolarını `test-design-rules.md` §3'teki sorularla seç ve
+  `@smoke` etiketiyle işaretle.
 
 ### Adım 6: Kapsam özeti
 
@@ -147,6 +156,7 @@ senaryo sayıları.
 - [ ] Her `AC` ve `BR` öğesi `coverage_summary.basis` içinde
 - [ ] Her koşul, risk seviyesinin gerektirdiği derinlikte test edilmiş
 - [ ] Her senaryo beklenen sonuçla (`O zaman`) bitiyor
+- [ ] Kalıcı değişiklik bırakan her senaryoda `postconditions` var ve ürün davranışı iddia etmiyor
 - [ ] Tırnak içindeki her beklenen metin kartta birebir geçiyor
 - [ ] Her `<parametre>` senaryonun tüm veri setlerinde tanımlı
 - [ ] Bir veri setinde en fazla bir geçersiz değer
@@ -161,15 +171,62 @@ senaryo sayıları.
    klasörüne göredir (VS Code'da `.github/skills/scenario-generator/`):
 
    ```bash
-   python <skill-klasörü>/scripts/render_gherkin.py cikti.json cikti.feature --report rapor.md
+   python <skill-klasörü>/scripts/render_gherkin.py cikti.json cikti.feature --report rapor.md --selection cikti-secim.md
    ```
 
    Script hata verirse JSON'u düzelt ve tekrar çalıştır; hata kalmayana kadar
    sürdür. Uyarılar bilgi amaçlıdır.
 3. Kod çalıştıramıyorsan yalnızca JSON'u döndür; dönüşümü pipeline yapar.
 
-Yanıt olarak JSON belgesini (ve üretildiyse `.feature` ile raporu) döndür.
-Önünde veya arkasında açıklama metni olmaz.
+Kullanıcıyla konuşmadan (pipeline'da) çalışıyorsan yanıt olarak yalnızca JSON
+belgesini (ve üretildiyse `.feature`, rapor ve seçim listesini) döndür; önünde
+veya arkasında açıklama metni olmaz ve Adım 9 uygulanmaz. Kullanıcıyla
+konuşuyorsan Adım 9'a geç.
+
+### Adım 9: Jira'ya aktarılacak senaryoların seçimi
+
+Hangi senaryonun Jira'ya Test kaydı olarak ekleneceğine **kullanıcı karar
+verir.** Seçim listesi (`cikti-secim.md`) bu kararın tek kaydıdır:
+
+```text
+- [x] 1. TS-ESUBE-2041-001 · yüksek · pozitif · hazır · @smoke — Geçerli bilgilerle …
+- [ ] 5. TS-ESUBE-2041-006 · yüksek · negatif · taslak (Q-01) — IBAN 26 karakterden uzun …
+```
+
+1. Script listeyi koşum sırasıyla üretir: önce `@smoke`, sonra risk seviyesi.
+   Hazır senaryolar işaretli, taslak senaryolar işaretsiz gelir. Bu yalnızca
+   başlangıç önerisidir.
+2. Listeyi kullanıcıya numaralarıyla göster ve hangilerinin ekleneceğini sor.
+   Kullanıcı dosyadaki kutuları kendisi de işaretleyebilir.
+3. Kullanıcının yanıtını ("3 ve 7'yi ekleme", "yalnızca smoke olanlar")
+   listedeki `[x]` / `[ ]` işaretlerine uygula. Başka hiçbir satırı değiştirme;
+   kullanıcının söylemediği bir senaryonun işaretini değiştirme. Yanıt
+   belirsizse uygulamadan önce sor.
+4. Taslak bir senaryo seçilirse bloklayıcı sorusunun açık olduğunu söyle; yine
+   de seçilmesini isterse işaretle.
+5. Aktarım dosyasını üret:
+
+   ```bash
+   python <skill-klasörü>/scripts/jira_export.py cikti.json cikti-secim.md cikti-jira.csv
+   ```
+
+   Kurumda Test kaydının adı farklıysa `--issue-type "<ad>"` ekle. Script,
+   liste JSON'la uyuşmuyorsa (başka karta ait satır, değişmiş başlık, tekrar
+   eden satır) veya hiç işaret yoksa dosya üretmez; listeyi yeniden üret ya
+   da kullanıcıya sor.
+
+Kart güncellenip JSON yeniden üretildiğinde aynı `--selection` yolu verilir:
+kullanıcının işaretleri korunur. Yalnızca yeni senaryolar ve başlığı değişen
+senaryolar varsayılana döner; script bunları uyarı olarak yazar.
+
+**CSV'nin Jira'ya yüklenmesi** (kullanıcı yapar; agent Jira'ya bağlanmaz):
+Jira'nın CSV içe aktarımında (Issues → Import issues from CSV) kodlama UTF-8
+seçilir; `Summary`, `Issue Type`, `Priority`, `Description` ve `Labels`
+sütunları aynı adlı alanlara eşlenir. `Kaynak Kart` sütunu, test kaydının
+kartla kurumdaki ilişkisine eşlenir: kayıt kartın alt kaydıysa üst kayıt
+(Parent), bağlantıysa ilgili bağlantı türü (ör. "tests" veya "relates to").
+Öncelik adları Jira'nın varsayılanlarıdır (Highest, High, Medium, Low); kurumda
+farklıysa sihirbazın değer eşlemesinde düzeltilir.
 
 ## Zorunlu kurallar
 
@@ -205,6 +262,9 @@ Yanıt olarak JSON belgesini (ve üretildiyse `.feature` ile raporu) döndür.
 15. **Ağ erişimi yok.** Jira'ya veya başka bir adrese bağlanılmaz, oturum
     açılmaz, kimlik bilgisi istenmez, ek indirilmez. Kart verisinin tek
     kaynağı paylaşılan XML ve kullanıcının açıkça eklediği dosyalardır.
+16. **Jira seçimi kullanıcınındır.** Agent seçim listesindeki işaretleri
+    yalnızca kullanıcının söylediği gibi değiştirir. Jira kayıtlarını agent
+    oluşturmaz; CSV'yi kullanıcı yükler.
 
 ## Bug kartları (değişiklikle ilgili test)
 
