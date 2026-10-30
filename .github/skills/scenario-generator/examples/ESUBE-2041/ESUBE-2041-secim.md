@@ -11,7 +11,8 @@ risk seviyesi.
 - [x] 2. TS-ESUBE-2041-002 · alternatif akış · yüksek · negatif · hazır — Gönder butonuna art arda iki kez basıldığında tek EFT işlemi oluşur
 - [x] 3. TS-ESUBE-2041-003 · hata akışı · yüksek · negatif · hazır — Tutar limit dışında olduğunda EFT başlatılmaz ve limit uyarısı gösterilir
 - [x] 4. TS-ESUBE-2041-005 · hata akışı · yüksek · negatif · hazır — IBAN TR ile başlamadığında veya 26 karakterden kısa olduğunda EFT başlatılmaz
-- [ ] 5. TS-ESUBE-2041-006 · hata akışı · yüksek · negatif · taslak (Q-01) — IBAN 26 karakterden uzun girildiğinde Geçersiz IBAN mesajı gösterilir
+- [x] 5. TS-ESUBE-2041-006 · hata akışı · yüksek · negatif · hazır — IBAN alanına 26 karakterden fazlası girilemez
 - [x] 6. TS-ESUBE-2041-004 · hata akışı · orta · negatif · hazır — Zorunlu alanlardan biri boş bırakıldığında EFT başlatılmaz ve zorunlu alan mesajı gösterilir
 
-Aktarım: `python <skill-klasörü>/scripts/jira_export.py <KEY>.json <KEY>-secim.md <KEY>-jira.csv`
+Ekrandan seçim: `<KEY>-secim.html` (işaretle → Jira CSV indir).
+Komutla aktarım: `python <skill-klasörü>/scripts/jira_export.py <KEY>.json <KEY>-secim.md <KEY>-jira.csv`

@@ -2,7 +2,8 @@
 
 Bu dosya, bir Jira kartından **uçtan uca test senaryosunun** adım adım nasıl
 kurulduğunu anlatır. `SKILL.md` iş akışının 4. ve 5. adımlarında kullanılır.
-Örnekler `examples/sample-output.json`'daki EFT kartındandır (ESUBE-2041).
+Örnekler `examples/ESUBE-2041/` altındaki EFT kartındandır; kartın XML'i
+`examples/ESUBE-2041.xml`.
 
 ## 1. Test senaryosu nedir
 

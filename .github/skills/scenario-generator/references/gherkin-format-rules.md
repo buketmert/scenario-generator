@@ -134,4 +134,4 @@ Dosya `# language: tr` satırıyla başlar.
       | Üst sınırın üstü: 50.000,01 | TR330006100519786457841326 | Test Alıcı | 50.000,01 |
 ```
 
-Tam örnek: `examples/sample-output.json` → `examples/sample-output.feature`.
+Tam örnek: `examples/ESUBE-2041/ESUBE-2041.json` → `examples/ESUBE-2041/ESUBE-2041.feature`.

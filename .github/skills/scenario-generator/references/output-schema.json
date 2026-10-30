@@ -24,8 +24,8 @@
   ],
   "properties": {
     "schema_version": {
-      "description": "3.0.0: her senaryo bir uçtan uca akışa (UC kapsam öğesi) bağlıdır. 2.x çıktıları bu kuralı taşımadığı için yeniden üretilmelidir.",
-      "const": "3.0.0"
+      "description": "3.0.0: her senaryo bir uçtan uca akışa (UC kapsam öğesi) bağlıdır. 3.1.0: çoktan seçmeli sorular (options, answer) ve kullanıcı yanıtı kaynağı (clarification). 2.x çıktıları akış bağı taşımadığı için yeniden üretilmelidir.",
+      "enum": ["3.1.0", "3.0.0"]
     },
     "generated_at": { "type": "string", "format": "date-time" },
     "source": {
@@ -315,13 +315,13 @@
           "enum": [
             "summary", "description", "acceptance_criteria", "environment", "comment", "attachment",
             "linked_issue", "subtask", "custom_field", "labels", "components", "priority",
-            "fix_versions", "affects_versions", "reporter"
+            "fix_versions", "affects_versions", "reporter", "clarification"
           ]
         },
         "ref": { "type": "string", "minLength": 1 }
       },
       "if": {
-        "properties": { "field": { "enum": ["comment", "attachment", "linked_issue", "subtask", "custom_field"] } }
+        "properties": { "field": { "enum": ["comment", "attachment", "linked_issue", "subtask", "custom_field", "clarification"] } }
       },
       "then": { "required": ["ref"] }
     },
@@ -357,6 +357,31 @@
         },
         "addressed_to": {
           "enum": ["product_owner", "business_analyst", "developer", "designer", "other"]
+        },
+        "options": {
+          "description": "Kullanıcıya çoktan seçmeli sorulan olası yanıtlar; kartta geçen yorumlardan türetilir. 'Bilinmiyor' ve 'Diğer' ayrıca sunulur, buraya yazılmaz.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "text"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-f]$" },
+              "text": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "answer": {
+          "description": "Kullanıcının yanıtı. choice: seçenek harfi, 'other' (text zorunlu) veya 'unknown' (soru açık kalır).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["choice"],
+          "properties": {
+            "choice": { "type": "string", "pattern": "^([a-f]|other|unknown)$" },
+            "text": { "type": "string", "minLength": 1 }
+          }
         }
       }
     },

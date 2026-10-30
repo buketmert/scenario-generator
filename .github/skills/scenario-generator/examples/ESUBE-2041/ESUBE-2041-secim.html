@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESUBE-2041 · Senaryo seçimi</title>
+<style>
+:root { --bg:#f6f7f9; --panel:#ffffff; --text:#1d2330; --muted:#5d6676; --line:#dfe3ea; --accent:#1f5fbf;
+  --accent-text:#ffffff; --on:#eaf1fd; --warn-bg:#fff4e0; --warn:#8a5300; --draft:#b45309; --code:#f0f2f5; }
+@media (prefers-color-scheme: dark) { :root { --bg:#14171c; --panel:#1c2027; --text:#e6e9ef; --muted:#9aa3b2;
+  --line:#2e343e; --accent:#5b9bff; --accent-text:#0b1220; --on:#1d2a3f; --warn-bg:#3a2a12; --warn:#ffc46b;
+  --draft:#f5a524; --code:#242a33; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui, "Segoe UI", sans-serif; }
+main { max-width:960px; margin:0 auto; padding:24px 16px 48px; }
+h1 { font-size:1.35rem; margin:0 0 4px; } .sub { color:var(--muted); margin:0 0 16px; }
+.bar { position:sticky; top:0; z-index:1; display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  background:var(--bg); padding:10px 0; border-bottom:1px solid var(--line); margin-bottom:12px; }
+button { font:inherit; border:1px solid var(--line); background:var(--panel); color:var(--text);
+  border-radius:6px; padding:6px 12px; cursor:pointer; }
+button.primary { background:var(--accent); color:var(--accent-text); border-color:var(--accent); margin-left:auto; }
+button:disabled { opacity:.5; cursor:not-allowed; }
+#sayi { color:var(--muted); } #uyari { width:100%; background:var(--warn-bg); color:var(--warn);
+  padding:6px 10px; border-radius:6px; }
+ol { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
+li { background:var(--panel); border:1px solid var(--line); border-radius:8px; }
+li.on { background:var(--on); border-color:var(--accent); }
+.row { display:flex; gap:12px; padding:12px; cursor:pointer; align-items:flex-start; }
+.row input { width:18px; height:18px; margin-top:3px; flex:none; }
+.num { color:var(--muted); min-width:1.5em; } .main { display:grid; gap:4px; min-width:0; }
+.title { font-weight:600; overflow-wrap:anywhere; }
+.meta { display:flex; flex-wrap:wrap; gap:6px; font-size:.85rem; color:var(--muted); }
+.meta code, pre { background:var(--code); border-radius:4px; }
+.meta code { padding:0 4px; } .badge { border:1px solid var(--line); border-radius:999px; padding:0 8px; }
+.badge.draft { color:var(--draft); border-color:var(--draft); }
+details { padding:0 12px 12px 54px; } summary { cursor:pointer; color:var(--accent); }
+pre { padding:10px; overflow:auto; font-size:.85rem; white-space:pre; }
+.hint { color:var(--muted); font-size:.9rem; margin-top:20px; }
+</style>
+</head>
+<body>
+<main>
+<h1>ESUBE-2041 — E-Şube&#x27;den EFT ile para gönderme</h1>
+<p class="sub">Kart durumu: kısmi · 6 senaryo · açık soru: Q-02, Q-03</p>
+<div class="bar"><button type="button" data-sec="all">Tümü</button><button type="button" data-sec="ready">Hazırlar</button><button type="button" data-sec="none">Hiçbiri</button><span id="sayi"></span><button type="button" id="indir" class="primary">Jira CSV indir</button><div id="uyari" hidden></div></div>
+<ol>
+<li><label class="row"><input type="checkbox" value="TS-ESUBE-2041-001" checked><span class="num">1.</span><span class="main"><span class="title">Geçerli bilgilerle gönderilen EFT tamamlanır ve dekont numarası gösterilir</span><span class="meta"><code>TS-ESUBE-2041-001</code><span class="badge">ana akış</span><span class="badge">yüksek</span><span class="badge">pozitif</span><span class="badge">@smoke</span></span></span></label><details><summary>Ayrıntı</summary><p>Ana akışı uçtan uca doğrulamak: geçerli alıcı bilgileri ve limit içindeki tutarlarla (tipik değer ve sınırlar) EFT&#x27;nin tamamlandığını, başarı mesajının ve dekont numarasının gösterildiğini görmek.</p><pre># language: tr
+Özellik: EFT Para Transferi
+
+  Geçmiş:
+    Diyelim ki E-Şube&#x27;ye bireysel müşteri olarak giriş yapmışım
+    Ve Para Transferleri menüsünden EFT ekranını açmışım
+    Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
+
+  @TS-ESUBE-2041-001 @pozitif @smoke
+  Senaryo Taslağı: Geçerli bilgilerle gönderilen EFT tamamlanır ve dekont numarası gösterilir
+    Diyelim ki gönderici hesabımda en az &quot;&lt;tutar&gt;&quot; TL kullanılabilir bakiye var
+    Eğer ki Alıcı IBAN alanına &quot;&lt;iban&gt;&quot; yazarsam
+    Ve Alıcı Adı Soyadı alanına &quot;&lt;ad_soyad&gt;&quot; yazarsam
+    Ve Tutar alanına &quot;&lt;tutar&gt;&quot; yazarsam
+    Ve Gönder butonuna basarsam
+    O zaman &quot;İşleminiz başarıyla gerçekleştirilmiştir&quot; mesajını görürüm
+    Ve ekranda işlemin dekont numarasını görürüm
+
+    Örnekler:
+      | durum                             | iban                       | ad_soyad   | tutar     |
+      | Tipik tutar: 1.000,00             | TR330006100519786457841326 | Test Alıcı | 1.000,00  |
+      | Alt sınır: 1,00                   | TR330006100519786457841326 | Test Alıcı | 1,00      |
+      | Alt sınırın hemen üstü: 1,01      | TR330006100519786457841326 | Test Alıcı | 1,01      |
+      | Üst sınırın hemen altı: 49.999,99 | TR330006100519786457841326 | Test Alıcı | 49.999,99 |
+      | Üst sınır: 50.000,00              | TR330006100519786457841326 | Test Alıcı | 50.000,00 |</pre><p>Son koşul: Her veri satırı gönderici test hesabından ayrı bir EFT işlemi oluşturur; satırlar art arda koşulacaksa toplam tutar kadar bakiye hazırlanmalıdır.</p></details></li>
+<li><label class="row"><input type="checkbox" value="TS-ESUBE-2041-002" checked><span class="num">2.</span><span class="main"><span class="title">Gönder butonuna art arda iki kez basıldığında tek EFT işlemi oluşur</span><span class="meta"><code>TS-ESUBE-2041-002</code><span class="badge">alternatif akış</span><span class="badge">yüksek</span><span class="badge">negatif</span></span></span></label><details><summary>Ayrıntı</summary><p>Ana akışın tekrar gönderimle izlendiği alternatif akışta mükerrer EFT oluşmadığını doğrulamak (hata tahmini).</p><pre># language: tr
+Özellik: EFT Para Transferi
+
+  Geçmiş:
+    Diyelim ki E-Şube&#x27;ye bireysel müşteri olarak giriş yapmışım
+    Ve Para Transferleri menüsünden EFT ekranını açmışım
+    Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
+
+  @TS-ESUBE-2041-002 @negatif
+  Senaryo: Gönder butonuna art arda iki kez basıldığında tek EFT işlemi oluşur
+    Diyelim ki gönderici hesabımda en az &quot;1.000,00&quot; TL kullanılabilir bakiye var
+    Eğer ki Alıcı IBAN alanına &quot;TR330006100519786457841326&quot; yazarsam
+    Ve Alıcı Adı Soyadı alanına &quot;Test Alıcı&quot; yazarsam
+    Ve Tutar alanına &quot;1.000,00&quot; yazarsam
+    Ve Gönder butonuna aralarında bekleme olmadan iki kez basarsam
+    O zaman &quot;İşleminiz başarıyla gerçekleştirilmiştir&quot; mesajını bir kez görürüm
+    Ve ekranda tek bir dekont numarası görürüm</pre><p>Son koşul: Gönderici test hesabından EFT işlemi oluşur. Senaryo tekrar koşulmadan önce bakiyenin ön koşuldaki tutarı karşıladığı kontrol edilmelidir.</p></details></li>
+<li><label class="row"><input type="checkbox" value="TS-ESUBE-2041-003" checked><span class="num">3.</span><span class="main"><span class="title">Tutar limit dışında olduğunda EFT başlatılmaz ve limit uyarısı gösterilir</span><span class="meta"><code>TS-ESUBE-2041-003</code><span class="badge">hata akışı</span><span class="badge">yüksek</span><span class="badge">negatif</span></span></span></label><details><summary>Ayrıntı</summary><p>Limit dışı tutarla izlenen hata akışında uyarının gösterildiğini ve EFT&#x27;nin başlatılmadığını doğrulamak.</p><pre># language: tr
+Özellik: EFT Para Transferi
+
+  Geçmiş:
+    Diyelim ki E-Şube&#x27;ye bireysel müşteri olarak giriş yapmışım
+    Ve Para Transferleri menüsünden EFT ekranını açmışım
+    Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
+
+  @TS-ESUBE-2041-003 @negatif
+  Senaryo Taslağı: Tutar limit dışında olduğunda EFT başlatılmaz ve limit uyarısı gösterilir
+    Diyelim ki gönderici hesabımda en az &quot;&lt;tutar&gt;&quot; TL kullanılabilir bakiye var
+    Eğer ki Alıcı IBAN alanına &quot;&lt;iban&gt;&quot; yazarsam
+    Ve Alıcı Adı Soyadı alanına &quot;&lt;ad_soyad&gt;&quot; yazarsam
+    Ve Tutar alanına &quot;&lt;tutar&gt;&quot; yazarsam
+    Ve Gönder butonuna basarsam
+    O zaman &quot;Tutar 1,00 TL ile 50.000,00 TL arasında olmalıdır&quot; mesajını görürüm
+    Fakat işlem başlatılmaz
+
+    Örnekler:
+      | durum                       | iban                       | ad_soyad   | tutar     |
+      | Alt sınırın altı: 0,99      | TR330006100519786457841326 | Test Alıcı | 0,99      |
+      | Üst sınırın üstü: 50.000,01 | TR330006100519786457841326 | Test Alıcı | 50.000,01 |</pre></details></li>
+<li><label class="row"><input type="checkbox" value="TS-ESUBE-2041-005" checked><span class="num">4.</span><span class="main"><span class="title">IBAN TR ile başlamadığında veya 26 karakterden kısa olduğunda EFT başlatılmaz</span><span class="meta"><code>TS-ESUBE-2041-005</code><span class="badge">hata akışı</span><span class="badge">yüksek</span><span class="badge">negatif</span></span></span></label><details><summary>Ayrıntı</summary><p>Geçersiz IBAN biçimiyle izlenen hata akışında mesajın gösterildiğini ve EFT&#x27;nin başlatılmadığını doğrulamak. Her satırda tek bir geçersiz özellik var.</p><pre># language: tr
+Özellik: EFT Para Transferi
+
+  Geçmiş:
+    Diyelim ki E-Şube&#x27;ye bireysel müşteri olarak giriş yapmışım
+    Ve Para Transferleri menüsünden EFT ekranını açmışım
+    Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
+
+  @TS-ESUBE-2041-005 @negatif
+  Senaryo Taslağı: IBAN TR ile başlamadığında veya 26 karakterden kısa olduğunda EFT başlatılmaz
+    Diyelim ki gönderici hesabımda en az &quot;&lt;tutar&gt;&quot; TL kullanılabilir bakiye var
+    Eğer ki Alıcı IBAN alanına &quot;&lt;iban&gt;&quot; yazarsam
+    Ve Alıcı Adı Soyadı alanına &quot;&lt;ad_soyad&gt;&quot; yazarsam
+    Ve Tutar alanına &quot;&lt;tutar&gt;&quot; yazarsam
+    Ve Gönder butonuna basarsam
+    O zaman &quot;Geçersiz IBAN&quot; mesajını görürüm
+    Fakat işlem başlatılmaz
+
+    Örnekler:
+      | durum                             | iban                       | ad_soyad   | tutar    |
+      | TR ile başlamıyor, uzunluk 26     | DE330006100519786457841326 | Test Alıcı | 1.000,00 |
+      | Uzunluk sınırın altı: 25 karakter | TR33000610051978645784132  | Test Alıcı | 1.000,00 |</pre></details></li>
+<li><label class="row"><input type="checkbox" value="TS-ESUBE-2041-006" checked><span class="num">5.</span><span class="main"><span class="title">IBAN alanına 26 karakterden fazlası girilemez</span><span class="meta"><code>TS-ESUBE-2041-006</code><span class="badge">hata akışı</span><span class="badge">yüksek</span><span class="badge">negatif</span></span></span></label><details><summary>Ayrıntı</summary><p>26 karakterden uzun IBAN ile izlenen hata akışında alanın 27. karakteri kabul etmediğini doğrulamak (Q-01 yanıtı, BR-03).</p><pre># language: tr
+Özellik: EFT Para Transferi
+
+  Geçmiş:
+    Diyelim ki E-Şube&#x27;ye bireysel müşteri olarak giriş yapmışım
+    Ve Para Transferleri menüsünden EFT ekranını açmışım
+    Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
+
+  @TS-ESUBE-2041-006 @negatif
+  Senaryo: IBAN alanına 26 karakterden fazlası girilemez
+    Eğer ki Alıcı IBAN alanına &quot;TR3300061005197864578413261&quot; yazarsam
+    O zaman Alıcı IBAN alanında yalnızca ilk 26 karakter görünür
+    Fakat hata mesajı gösterilmez</pre></details></li>
+<li><label class="row"><input type="checkbox" value="TS-ESUBE-2041-004" checked><span class="num">6.</span><span class="main"><span class="title">Zorunlu alanlardan biri boş bırakıldığında EFT başlatılmaz ve zorunlu alan mesajı gösterilir</span><span class="meta"><code>TS-ESUBE-2041-004</code><span class="badge">hata akışı</span><span class="badge">orta</span><span class="badge">negatif</span></span></span></label><details><summary>Ayrıntı</summary><p>Alıcı IBAN, Alıcı Adı Soyadı veya Tutar alanı boşken izlenen hata akışında mesajın gösterildiğini ve EFT&#x27;nin başlatılmadığını doğrulamak.</p><pre># language: tr
+Özellik: EFT Para Transferi
+
+  Geçmiş:
+    Diyelim ki E-Şube&#x27;ye bireysel müşteri olarak giriş yapmışım
+    Ve Para Transferleri menüsünden EFT ekranını açmışım
+    Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
+
+  @TS-ESUBE-2041-004 @negatif
+  Senaryo Taslağı: Zorunlu alanlardan biri boş bırakıldığında EFT başlatılmaz ve zorunlu alan mesajı gösterilir
+    Diyelim ki gönderici hesabımda en az &quot;1.000,00&quot; TL kullanılabilir bakiye var
+    Eğer ki Alıcı IBAN alanına &quot;&lt;iban&gt;&quot; yazarsam
+    Ve Alıcı Adı Soyadı alanına &quot;&lt;ad_soyad&gt;&quot; yazarsam
+    Ve Tutar alanına &quot;&lt;tutar&gt;&quot; yazarsam
+    Ve Gönder butonuna basarsam
+    O zaman &quot;Lütfen zorunlu alanları doldurunuz&quot; mesajını görürüm
+    Fakat işlem başlatılmaz
+
+    Örnekler:
+      | durum                | iban                       | ad_soyad   | tutar    |
+      | Alıcı IBAN boş       |                            | Test Alıcı | 1.000,00 |
+      | Alıcı Adı Soyadı boş | TR330006100519786457841326 |            | 1.000,00 |
+      | Tutar boş            | TR330006100519786457841326 | Test Alıcı |          |</pre></details></li>
+</ol>
+<p class="hint">Her seçili senaryo bir <b>Test Senaryosu</b> kartıdır. CSV'yi Jira'da Issues → Import issues from CSV ile yükleyin (UTF-8); Kaynak Kart sütununu kaynak karta bağlayan bağlantı türüne eşleyin.</p>
+</main>
+<script type="application/json" id="veri">{"key": "ESUBE-2041", "header": ["Summary", "Issue Type", "Priority", "Kaynak Kart", "Akış", "Ön Koşullar", "Test Adımları", "Beklenen Sonuç", "Test Verisi", "Description"], "rows": {"TS-ESUBE-2041-001": ["[TS-ESUBE-2041-001] Geçerli bilgilerle gönderilen EFT tamamlanır ve dekont numarası gösterilir", "Test Senaryosu", "High", "ESUBE-2041", "ana akış", "1. Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım\n2. Ve Para Transferleri menüsünden EFT ekranını açmışım\n3. Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim\n4. Diyelim ki gönderici hesabımda en az \"<tutar>\" TL kullanılabilir bakiye var", "1. Eğer ki Alıcı IBAN alanına \"<iban>\" yazarsam\n2. Ve Alıcı Adı Soyadı alanına \"<ad_soyad>\" yazarsam\n3. Ve Tutar alanına \"<tutar>\" yazarsam\n4. Ve Gönder butonuna basarsam\n5. O zaman \"İşleminiz başarıyla gerçekleştirilmiştir\" mesajını görürüm\n6. Ve ekranda işlemin dekont numarasını görürüm", "1. O zaman \"İşleminiz başarıyla gerçekleştirilmiştir\" mesajını görürüm\n2. Ve ekranda işlemin dekont numarasını görürüm", "||durum||iban||ad_soyad||tutar||\n|Tipik tutar: 1.000,00|TR330006100519786457841326|Test Alıcı|1.000,00|\n|Alt sınır: 1,00|TR330006100519786457841326|Test Alıcı|1,00|\n|Alt sınırın hemen üstü: 1,01|TR330006100519786457841326|Test Alıcı|1,01|\n|Üst sınırın hemen altı: 49.999,99|TR330006100519786457841326|Test Alıcı|49.999,99|\n|Üst sınır: 50.000,00|TR330006100519786457841326|Test Alıcı|50.000,00|", "*Amaç:* Ana akışı uçtan uca doğrulamak: geçerli alıcı bilgileri ve limit içindeki tutarlarla (tipik değer ve sınırlar) EFT'nin tamamlandığını, başarı mesajının ve dekont numarasının gösterildiğini görmek.\n*Akış (ana akış):* E-Şube'ye bireysel müşteri girişi → Para Transferleri > EFT → Gönderici Hesap seçimi → Alıcı IBAN, Alıcı Adı Soyadı ve Tutar girişi → Gönder → başarı mesajı ve dekont numarası\n*Kaynak kart:* ESUBE-2041\n*Öncelik (risk):* yüksek | *Tür:* pozitif | *Teknik:* uçtan uca akış, kabul kriterine dayalı, denklik paylarına ayırma, sınır değer analizi\n*İzlenebilirlik:* AC-01, BR-02, AC-02, AC-03, BR-01, AC-04, UI-01 | COND-01, COND-02, COND-03, COND-04 | UC-ANA, EP-REQ-V, EP-IBAN-V, BVA-IBAN-26, EP-AMT-V, BVA-AMT-1.00, BVA-AMT-1.01, BVA-AMT-49999.99, BVA-AMT-50000.00\n*Test ortamı:* TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri\n\n{noformat}\n# language: tr\nÖzellik: EFT Para Transferi\n\n  Geçmiş:\n    Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım\n    Ve Para Transferleri menüsünden EFT ekranını açmışım\n    Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim\n\n  @TS-ESUBE-2041-001 @pozitif @smoke\n  Senaryo Taslağı: Geçerli bilgilerle gönderilen EFT tamamlanır ve dekont numarası gösterilir\n    Diyelim ki gönderici hesabımda en az \"<tutar>\" TL kullanılabilir bakiye var\n    Eğer ki Alıcı IBAN alanına \"<iban>\" yazarsam\n    Ve Alıcı Adı Soyadı alanına \"<ad_soyad>\" yazarsam\n    Ve Tutar alanına \"<tutar>\" yazarsam\n    Ve Gönder butonuna basarsam\n    O zaman \"İşleminiz başarıyla gerçekleştirilmiştir\" mesajını görürüm\n    Ve ekranda işlemin dekont numarasını görürüm\n\n    Örnekler:\n      | durum                             | iban                       | ad_soyad   | tutar     |\n      | Tipik tutar: 1.000,00             | TR330006100519786457841326 | Test Alıcı | 1.000,00  |\n      | Alt sınır: 1,00                   | TR330006100519786457841326 | Test Alıcı | 1,00      |\n      | Alt sınırın hemen üstü: 1,01      | TR330006100519786457841326 | Test Alıcı | 1,01      |\n      | Üst sınırın hemen altı: 49.999,99 | TR330006100519786457841326 | Test Alıcı | 49.999,99 |\n      | Üst sınır: 50.000,00              | TR330006100519786457841326 | Test Alıcı | 50.000,00 |\n{noformat}\n\n*Son koşullar:*\n* Her veri satırı gönderici test hesabından ayrı bir EFT işlemi oluşturur; satırlar art arda koşulacaksa toplam tutar kadar bakiye hazırlanmalıdır."], "TS-ESUBE-2041-002": ["[TS-ESUBE-2041-002] Gönder butonuna art arda iki kez basıldığında tek EFT işlemi oluşur", "Test Senaryosu", "High", "ESUBE-2041", "alternatif akış", "1. Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım\n2. Ve Para Transferleri menüsünden EFT ekranını açmışım\n3. Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim\n4. Diyelim ki gönderici hesabımda en az \"1.000,00\" TL kullanılabilir bakiye var", "1. Eğer ki Alıcı IBAN alanına \"TR330006100519786457841326\" yazarsam\n2. Ve Alıcı Adı Soyadı alanına \"Test Alıcı\" yazarsam\n3. Ve Tutar alanına \"1.000,00\" yazarsam\n4. Ve Gönder butonuna aralarında bekleme olmadan iki kez basarsam\n5. O zaman \"İşleminiz başarıyla gerçekleştirilmiştir\" mesajını bir kez görürüm\n6. Ve ekranda tek bir dekont numarası görürüm", "1. O zaman \"İşleminiz başarıyla gerçekleştirilmiştir\" mesajını bir kez görürüm\n2. Ve ekranda tek bir dekont numarası görürüm", "Geçerli bilgiler, tutar 1.000,00\n* iban: TR330006100519786457841326\n* ad_soyad: Test Alıcı\n* tutar: 1.000,00", "*Amaç:* Ana akışın tekrar gönderimle izlendiği alternatif akışta mükerrer EFT oluşmadığını doğrulamak (hata tahmini).\n*Akış (alternatif akış):* Ana akış; Gönder butonuna art arda iki kez basılır → tek başarı mesajı ve tek dekont numarası\n*Kaynak kart:* ESUBE-2041\n*Öncelik (risk):* yüksek | *Tür:* negatif | *Teknik:* uçtan uca akış, hata tahmini\n*İzlenebilirlik:* AC-04 | COND-04 | UC-ALT-CIFTGONDER, EG-01\n*Test ortamı:* TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri\n\n{noformat}\n# language: tr\nÖzellik: EFT Para Transferi\n\n  Geçmiş:\n    Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım\n    Ve Para Transferleri menüsünden EFT ekranını açmışım\n    Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim\n\n  @TS-ESUBE-2041-002 @negatif\n  Senaryo: Gönder butonuna art arda iki kez basıldığında tek EFT işlemi oluşur\n    Diyelim ki gönderici hesabımda en az \"1.000,00\" TL kullanılabilir bakiye var\n    Eğer ki Alıcı IBAN alanına \"TR330006100519786457841326\" yazarsam\n    Ve Alıcı Adı Soyadı alanına \"Test Alıcı\" yazarsam\n    Ve Tutar alanına \"1.000,00\" yazarsam\n    Ve Gönder butonuna aralarında bekleme olmadan iki kez basarsam\n    O zaman \"İşleminiz başarıyla gerçekleştirilmiştir\" mesajını bir kez görürüm\n    Ve ekranda tek bir dekont numarası görürüm\n{noformat}\n\n*Son koşullar:*\n* Gönderici test hesabından EFT işlemi oluşur. Senaryo tekrar koşulmadan önce bakiyenin ön koşuldaki tutarı karşıladığı kontrol edilmelidir.\n\n*Notlar:*\n* Beklenen sonuç AC-04'e dayanır: tek gönderim için tek başarı mesajı ve tek dekont numarası."], "TS-ESUBE-2041-003": ["[TS-ESUBE-2041-003] Tutar limit dışında olduğunda EFT başlatılmaz ve limit uyarısı gösterilir", "Test Senaryosu", "High", "ESUBE-2041", "hata akışı", "1. Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım\n2. Ve Para Transferleri menüsünden EFT ekranını açmışım\n3. Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim\n4. Diyelim ki gönderici hesabımda en az \"<tutar>\" TL kullanılabilir bakiye var", "1. Eğer ki Alıcı IBAN alanına \"<iban>\" yazarsam\n2. Ve Alıcı Adı Soyadı alanına \"<ad_soyad>\" yazarsam\n3. Ve Tutar alanına \"<tutar>\" yazarsam\n4. Ve Gönder butonuna basarsam\n5. O zaman \"Tutar 1,00 TL ile 50.000,00 TL arasında olmalıdır\" mesajını görürüm\n6. Fakat işlem başlatılmaz", "1. O zaman \"Tutar 1,00 TL ile 50.000,00 TL arasında olmalıdır\" mesajını görürüm\n2. Fakat işlem başlatılmaz", "||durum||iban||ad_soyad||tutar||\n|Alt sınırın altı: 0,99|TR330006100519786457841326|Test Alıcı|0,99|\n|Üst sınırın üstü: 50.000,01|TR330006100519786457841326|Test Alıcı|50.000,01|", "*Amaç:* Limit dışı tutarla izlenen hata akışında uyarının gösterildiğini ve EFT'nin başlatılmadığını doğrulamak.\n*Akış (hata akışı):* Ana akış; Tutar limit dışında → \"Tutar 1,00 TL ile 50.000,00 TL arasında olmalıdır\" mesajı, EFT başlatılmaz\n*Kaynak kart:* ESUBE-2041\n*Öncelik (risk):* yüksek | *Tür:* negatif | *Teknik:* uçtan uca akış, sınır değer analizi, denklik paylarına ayırma\n*İzlenebilirlik:* AC-03, BR-01, UI-02 | COND-03 | UC-HATA-LIMIT, BVA-AMT-0.99, BVA-AMT-50000.01, EP-AMT-I1, EP-AMT-I2\n*Test ortamı:* TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri\n\n{noformat}\n# language: tr\nÖzellik: EFT Para Transferi\n\n  Geçmiş:\n    Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım\n    Ve Para Transferleri menüsünden EFT ekranını açmışım\n    Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim\n\n  @TS-ESUBE-2041-003 @negatif\n  Senaryo Taslağı: Tutar limit dışında olduğunda EFT başlatılmaz ve limit uyarısı gösterilir\n    Diyelim ki gönderici hesabımda en az \"<tutar>\" TL kullanılabilir bakiye var\n    Eğer ki Alıcı IBAN alanına \"<iban>\" yazarsam\n    Ve Alıcı Adı Soyadı alanına \"<ad_soyad>\" yazarsam\n    Ve Tutar alanına \"<tutar>\" yazarsam\n    Ve Gönder butonuna basarsam\n    O zaman \"Tutar 1,00 TL ile 50.000,00 TL arasında olmalıdır\" mesajını görürüm\n    Fakat işlem başlatılmaz\n\n    Örnekler:\n      | durum                       | iban                       | ad_soyad   | tutar     |\n      | Alt sınırın altı: 0,99      | TR330006100519786457841326 | Test Alıcı | 0,99      |\n      | Üst sınırın üstü: 50.000,01 | TR330006100519786457841326 | Test Alıcı | 50.000,01 |\n{noformat}\n\n*Notlar:*\n* Bakiye ön koşulu, yetersiz bakiye kontrolünün limit kontrolünü maskelememesi için tutar kadar olmalıdır."], "TS-ESUBE-2041-005": ["[TS-ESUBE-2041-005] IBAN TR ile başlamadığında veya 26 karakterden kısa olduğunda EFT başlatılmaz", "Test Senaryosu", "High", "ESUBE-2041", "hata akışı", "1. Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım\n2. Ve Para Transferleri menüsünden EFT ekranını açmışım\n3. Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim\n4. Diyelim ki gönderici hesabımda en az \"<tutar>\" TL kullanılabilir bakiye var", "1. Eğer ki Alıcı IBAN alanına \"<iban>\" yazarsam\n2. Ve Alıcı Adı Soyadı alanına \"<ad_soyad>\" yazarsam\n3. Ve Tutar alanına \"<tutar>\" yazarsam\n4. Ve Gönder butonuna basarsam\n5. O zaman \"Geçersiz IBAN\" mesajını görürüm\n6. Fakat işlem başlatılmaz", "1. O zaman \"Geçersiz IBAN\" mesajını görürüm\n2. Fakat işlem başlatılmaz", "||durum||iban||ad_soyad||tutar||\n|TR ile başlamıyor, uzunluk 26|DE330006100519786457841326|Test Alıcı|1.000,00|\n|Uzunluk sınırın altı: 25 karakter|TR33000610051978645784132|Test Alıcı|1.000,00|", "*Amaç:* Geçersiz IBAN biçimiyle izlenen hata akışında mesajın gösterildiğini ve EFT'nin başlatılmadığını doğrulamak. Her satırda tek bir geçersiz özellik var.\n*Akış (hata akışı):* Ana akış; Alıcı IBAN TR ile başlamıyor veya 26 karakterden kısa → \"Geçersiz IBAN\" mesajı, EFT başlatılmaz\n*Kaynak kart:* ESUBE-2041\n*Öncelik (risk):* yüksek | *Tür:* negatif | *Teknik:* uçtan uca akış, denklik paylarına ayırma, sınır değer analizi\n*İzlenebilirlik:* AC-02 | COND-02 | UC-HATA-IBAN, EP-IBAN-I1, EP-IBAN-I2, BVA-IBAN-25\n*Test ortamı:* TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri\n\n{noformat}\n# language: tr\nÖzellik: EFT Para Transferi\n\n  Geçmiş:\n    Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım\n    Ve Para Transferleri menüsünden EFT ekranını açmışım\n    Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim\n\n  @TS-ESUBE-2041-005 @negatif\n  Senaryo Taslağı: IBAN TR ile başlamadığında veya 26 karakterden kısa olduğunda EFT başlatılmaz\n    Diyelim ki gönderici hesabımda en az \"<tutar>\" TL kullanılabilir bakiye var\n    Eğer ki Alıcı IBAN alanına \"<iban>\" yazarsam\n    Ve Alıcı Adı Soyadı alanına \"<ad_soyad>\" yazarsam\n    Ve Tutar alanına \"<tutar>\" yazarsam\n    Ve Gönder butonuna basarsam\n    O zaman \"Geçersiz IBAN\" mesajını görürüm\n    Fakat işlem başlatılmaz\n\n    Örnekler:\n      | durum                             | iban                       | ad_soyad   | tutar    |\n      | TR ile başlamıyor, uzunluk 26     | DE330006100519786457841326 | Test Alıcı | 1.000,00 |\n      | Uzunluk sınırın altı: 25 karakter | TR33000610051978645784132  | Test Alıcı | 1.000,00 |\n{noformat}"], "TS-ESUBE-2041-006": ["[TS-ESUBE-2041-006] IBAN alanına 26 karakterden fazlası girilemez", "Test Senaryosu", "High", "ESUBE-2041", "hata akışı", "1. Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım\n2. Ve Para Transferleri menüsünden EFT ekranını açmışım\n3. Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim", "1. Eğer ki Alıcı IBAN alanına \"TR3300061005197864578413261\" yazarsam\n2. O zaman Alıcı IBAN alanında yalnızca ilk 26 karakter görünür\n3. Fakat hata mesajı gösterilmez", "1. O zaman Alıcı IBAN alanında yalnızca ilk 26 karakter görünür\n2. Fakat hata mesajı gösterilmez", "Uzunluk sınırın üstü: 27 karakter\n* iban: TR3300061005197864578413261", "*Amaç:* 26 karakterden uzun IBAN ile izlenen hata akışında alanın 27. karakteri kabul etmediğini doğrulamak (Q-01 yanıtı, BR-03).\n*Akış (hata akışı):* Ana akış; Alıcı IBAN alanına 26 karakterden uzun değer yazılır → 27. karakter girilemez, mesaj gösterilmez (Q-01 yanıtı)\n*Kaynak kart:* ESUBE-2041\n*Öncelik (risk):* yüksek | *Tür:* negatif | *Teknik:* uçtan uca akış, denklik paylarına ayırma, sınır değer analizi\n*İzlenebilirlik:* AC-02, CN-01, BR-03 | COND-02 | UC-HATA-IBANUZUN, EP-IBAN-I3, BVA-IBAN-27\n*Test ortamı:* TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri\n\n{noformat}\n# language: tr\nÖzellik: EFT Para Transferi\n\n  Geçmiş:\n    Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım\n    Ve Para Transferleri menüsünden EFT ekranını açmışım\n    Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim\n\n  @TS-ESUBE-2041-006 @negatif\n  Senaryo: IBAN alanına 26 karakterden fazlası girilemez\n    Eğer ki Alıcı IBAN alanına \"TR3300061005197864578413261\" yazarsam\n    O zaman Alıcı IBAN alanında yalnızca ilk 26 karakter görünür\n    Fakat hata mesajı gösterilmez\n{noformat}\n\n*Netleştirmeler (kullanıcı yanıtı):*\n* Q-01: AC-02'ye göre 26 karakterden uzun IBAN'da \"Geçersiz IBAN\" mesajı gösterilmeli; geliştirici yorumuna (C-01) göre alan 26 karakterden fazlasını kabul etmiyor. Beklenen davranış hangisi: 27. karakterin girilememesi mi, mesaj gösterilmesi mi? → 27. karakter girilemez; alan 26 karakterle sınırlıdır ve mesaj gösterilmez (C-01)"], "TS-ESUBE-2041-004": ["[TS-ESUBE-2041-004] Zorunlu alanlardan biri boş bırakıldığında EFT başlatılmaz ve zorunlu alan mesajı gösterilir", "Test Senaryosu", "Medium", "ESUBE-2041", "hata akışı", "1. Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım\n2. Ve Para Transferleri menüsünden EFT ekranını açmışım\n3. Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim\n4. Diyelim ki gönderici hesabımda en az \"1.000,00\" TL kullanılabilir bakiye var", "1. Eğer ki Alıcı IBAN alanına \"<iban>\" yazarsam\n2. Ve Alıcı Adı Soyadı alanına \"<ad_soyad>\" yazarsam\n3. Ve Tutar alanına \"<tutar>\" yazarsam\n4. Ve Gönder butonuna basarsam\n5. O zaman \"Lütfen zorunlu alanları doldurunuz\" mesajını görürüm\n6. Fakat işlem başlatılmaz", "1. O zaman \"Lütfen zorunlu alanları doldurunuz\" mesajını görürüm\n2. Fakat işlem başlatılmaz", "||durum||iban||ad_soyad||tutar||\n|Alıcı IBAN boş| |Test Alıcı|1.000,00|\n|Alıcı Adı Soyadı boş|TR330006100519786457841326| |1.000,00|\n|Tutar boş|TR330006100519786457841326|Test Alıcı| |", "*Amaç:* Alıcı IBAN, Alıcı Adı Soyadı veya Tutar alanı boşken izlenen hata akışında mesajın gösterildiğini ve EFT'nin başlatılmadığını doğrulamak.\n*Akış (hata akışı):* Ana akış; zorunlu alanlardan biri boş → \"Lütfen zorunlu alanları doldurunuz\" mesajı, EFT başlatılmaz\n*Kaynak kart:* ESUBE-2041\n*Öncelik (risk):* orta | *Tür:* negatif | *Teknik:* uçtan uca akış, kabul kriterine dayalı, denklik paylarına ayırma\n*İzlenebilirlik:* AC-01, BR-02, UI-01 | COND-01 | UC-HATA-ZORUNLU, EP-IBAN-EMPTY, EP-NAME-EMPTY, EP-AMT-EMPTY\n*Test ortamı:* TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri\n\n{noformat}\n# language: tr\nÖzellik: EFT Para Transferi\n\n  Geçmiş:\n    Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım\n    Ve Para Transferleri menüsünden EFT ekranını açmışım\n    Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim\n\n  @TS-ESUBE-2041-004 @negatif\n  Senaryo Taslağı: Zorunlu alanlardan biri boş bırakıldığında EFT başlatılmaz ve zorunlu alan mesajı gösterilir\n    Diyelim ki gönderici hesabımda en az \"1.000,00\" TL kullanılabilir bakiye var\n    Eğer ki Alıcı IBAN alanına \"<iban>\" yazarsam\n    Ve Alıcı Adı Soyadı alanına \"<ad_soyad>\" yazarsam\n    Ve Tutar alanına \"<tutar>\" yazarsam\n    Ve Gönder butonuna basarsam\n    O zaman \"Lütfen zorunlu alanları doldurunuz\" mesajını görürüm\n    Fakat işlem başlatılmaz\n\n    Örnekler:\n      | durum                | iban                       | ad_soyad   | tutar    |\n      | Alıcı IBAN boş       |                            | Test Alıcı | 1.000,00 |\n      | Alıcı Adı Soyadı boş | TR330006100519786457841326 |            | 1.000,00 |\n      | Tutar boş            | TR330006100519786457841326 | Test Alıcı |          |\n{noformat}\n\n*Notlar:*\n* Örnekler tablosundaki boş hücre, o alana hiçbir şey yazılmayacağı anlamına gelir."]}, "labels": {"TS-ESUBE-2041-001": ["para-transferleri", "eft", "smoke", "ana-akis", "pozitif", "ESUBE-2041"], "TS-ESUBE-2041-002": ["para-transferleri", "eft", "alternatif-akis", "negatif", "ESUBE-2041"], "TS-ESUBE-2041-003": ["para-transferleri", "eft", "hata-akisi", "negatif", "ESUBE-2041"], "TS-ESUBE-2041-005": ["para-transferleri", "eft", "hata-akisi", "negatif", "ESUBE-2041"], "TS-ESUBE-2041-006": ["para-transferleri", "eft", "hata-akisi", "negatif", "ESUBE-2041"], "TS-ESUBE-2041-004": ["para-transferleri", "eft", "hata-akisi", "negatif", "ESUBE-2041"]}}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById('veri').textContent);
+  const boxes = [...document.querySelectorAll('input[type=checkbox][value]')];
+  const count = document.getElementById('sayi');
+  const button = document.getElementById('indir');
+  const warn = document.getElementById('uyari');
+  const quote = s => '"' + String(s).replace(/"/g, '""') + '"';
+  // Hücreler Python'da (jira_export.csv_row) hesaplandı; burada yalnızca seçilenler birleştirilir.
+  function buildCsv(ids) {
+    const width = Math.max(0, ...ids.map(id => data.labels[id].length));
+    const lines = [data.header.concat(Array(width).fill('Labels')).map(quote).join(',')];
+    for (const id of ids) {
+      const labels = data.labels[id];
+      lines.push(data.rows[id].concat(labels, Array(width - labels.length).fill('')).map(quote).join(','));
+    }
+    return lines.join('\r\n') + '\r\n';
+  }
+  window.buildCsv = buildCsv;
+  const selected = () => boxes.filter(b => b.checked).map(b => b.value);
+  function refresh() {
+    const ids = selected();
+    count.textContent = ids.length + ' / ' + boxes.length + ' senaryo seçili';
+    button.disabled = !ids.length;
+    button.textContent = 'Jira CSV indir (' + ids.length + ')';
+    const drafts = boxes.filter(b => b.checked && b.hasAttribute('data-draft')).length;
+    warn.hidden = !drafts;
+    warn.textContent = drafts + ' taslak senaryo seçili: bloklayıcı sorusu yanıtlanmadı.';
+    for (const b of boxes) b.closest('li').classList.toggle('on', b.checked);
+  }
+  document.querySelectorAll('[data-sec]').forEach(el => el.addEventListener('click', () => {
+    for (const b of boxes) b.checked = el.dataset.sec === 'all' || (el.dataset.sec === 'ready' && !b.hasAttribute('data-draft'));
+    refresh();
+  }));
+  boxes.forEach(b => b.addEventListener('change', refresh));
+  button.addEventListener('click', () => {
+    const blob = new Blob([buildCsv(selected())], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = data.key + '-jira.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+  refresh();
+})();
+</script>
+</body>
+</html>

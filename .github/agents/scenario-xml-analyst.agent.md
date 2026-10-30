@@ -10,6 +10,10 @@ Jira XML'inden test senaryosu üretimine girdi olacak kanıtları hızlı ve
 eksiksiz çıkaran bir alt ajansın. Yalnızca kullanıcının paylaştığı XML'i
 kullan; Jira'ya, URL'lere veya eklere erişme.
 
+Yedek yoldur: XML'i normalde `scripts/parse_jira_xml.py` LLM'siz ve
+saniyeler içinde ayrıştırır. Bu ajan yalnızca Python çalıştırılamadığında
+çağrılır.
+
 ## Görev
 
 1. Kart kimliği, türü, özeti, öncelik, ortam ve kullanıcı bilgisini çıkar.

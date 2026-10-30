@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
-"""scenario-generator JSON çıktısını doğrular; manuel test için Türkçe Gherkin
-(.feature) dosyası, kart yeterlilik raporu (.md) ve Jira'ya aktarılacak
-senaryoların seçim listesini (.md) üretir.
+"""scenario-generator JSON çıktısını tamamlar ve doğrular; manuel test için
+Türkçe Gherkin (.feature) dosyası, kart yeterlilik raporu (.md), seçim listesi
+(.md) ve senaryoların ekrandan seçildiği sayfayı (.html) üretir.
 
 Kullanım:
-    python scripts/render_gherkin.py cikti.json cikti.feature --report rapor.md --selection secim.md
+    python scripts/render_gherkin.py test-scenarios/KEY/KEY.json --all --open   # hepsi + sayfayı aç
+    python scripts/render_gherkin.py cikti.json cikti.feature --report rapor.md --selection secim.md --html secim.html
     python scripts/render_gherkin.py cikti.json --check            # yalnızca doğrula
-    python scripts/render_gherkin.py cikti.json cikti.feature --exclude-drafts
+
+Tamamlama: aynı klasörde <KEY>-kart.json varsa (parse_jira_xml.py üretir)
+source, card_inventory ve kabul kriterleri oradan alınır. Risk seviyesi,
+senaryo önceliği ve durumu, kart durumu ve kapsam özeti hesaplanır; LLM'in
+bunları yazması gerekmez. Yazılmış ve farklıysa hesaplanan geçerlidir (uyarı).
 
 Seçim listesi varsa işaretler korunur; yalnızca yeni senaryolar ve başlığı
 değişen senaryolar varsayılana (hazır: işaretli, taslak: işaretsiz) döner.
-İşaretli senaryolar scripts/jira_export.py ile Jira CSV'sine aktarılır.
 
 Çıkış kodu: 0 = hata yok, 1 = doğrulama hatası, 2 = kullanım/dosya hatası.
 """
@@ -19,11 +23,15 @@ import argparse
 import json
 import re
 import sys
+import webbrowser
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = ROOT / "references" / "output-schema.json"
+SCHEMA_VERSION = "3.1.0"
+COVERAGE_ORDER = ["not_covered", "partially_covered", "covered"]
 
 KEYWORDS = {"given": "Diyelim ki", "when": "Eğer ki", "then": "O zaman", "and": "Ve", "but": "Fakat"}
 PHASE = {"given": 1, "when": 2, "then": 3}
@@ -31,6 +39,12 @@ PARAM_RE = re.compile(r"<([a-zçğıöşü][a-zçğıöşü0-9_]*)>")
 QUOTE_RE = re.compile(r'"([^"]+)"')
 RISK_ORDER = ["low", "medium", "high", "critical"]
 CHECK_IDS = [f"R{i}" for i in range(1, 11)]
+CHECK_CRITERIA = {
+    "R1": "Amaç: ne, kimin için, neden", "R2": "Test edilecek gereksinim var",
+    "R3": "Gereksinimler test edilebilir", "R4": "Veri kuralları", "R5": "Hata ve olumsuz durumlardaki davranış",
+    "R6": "Roller, yetkiler, ön koşullar", "R7": "Alanlar arası tutarlılık", "R8": "Kapsam sınırı",
+    "R9": "Test ortamı", "R10": "Ekler ve bağlantılar işlendi",
+}
 KIND_PREFIX = {"AC": "acceptance_criterion", "BR": "business_rule", "UI": "ui_detail", "CN": "constraint"}
 TECHNIQUE_PREFIX = {
     "UC": "use_case_based",
@@ -100,6 +114,168 @@ def instances(sc):
     return [ds["values"] for ds in sc["test_data"]["data_sets"]] or [{}]
 
 
+def is_answered(q):
+    """Kullanıcı soruyu yanıtladı mı? 'unknown' (bilinmiyor) yanıt sayılmaz, soru açık kalır."""
+    return q.get("answer", {}).get("choice") not in (None, "unknown")
+
+
+# ------------------------------------------------------------------ tamamlama
+
+def load_card(input_path, explicit=None):
+    """parse_jira_xml.py'nin ürettiği <KEY>-kart.json; yoksa None."""
+    path = Path(explicit) if explicit else Path(input_path).with_name(Path(input_path).stem + "-kart.json")
+    if path.exists():
+        return load_json(path)
+    if explicit:
+        raise OSError(f"kart dosyası yok: {path}")
+    return None
+
+
+def merge_card(doc, card, rep):
+    """XML'den gelen hazır veriyi JSON'la birleştirir; JSON'daki aynı kimlikli kayıt önceliklidir."""
+    doc["source"] = {**card.get("source", {}), **doc.get("source", {})}
+    inv, card_inv = doc.setdefault("card_inventory", {}), card.get("card_inventory", {})
+    for section, key in (("fields", "field"), ("attachments", "name"), ("linked_issues", "key"), ("external_links", "name")):
+        mine = {e[key]: e for e in inv.get(section, []) if isinstance(e, dict) and key in e}
+        inv[section] = [{**e, **mine.pop(e[key], {})} for e in card_inv.get(section, [])] + list(mine.values())
+    mine = {c["id"]: c for c in inv.get("comments", []) if isinstance(c, dict) and "id" in c}
+    texts, comments = card.get("comment_texts", {}), []
+    for c in card_inv.get("comments", []):
+        entry = {**c, **mine.pop(c["id"], {})}
+        if "summary" not in entry:
+            text = (texts.get(c["id"]) or "").strip() or "(boş yorum)"
+            entry["summary"] = text[:200] + ("…" if len(text) > 200 else "")
+            rep.warn(c["id"], "yorum değerlendirilmedi; rolü 'unknown', özeti yorumun başı olarak yazıldı")
+        entry.setdefault("role", "unknown")
+        entry.setdefault("status", "used")
+        entry.setdefault("basis_ids", [])
+        comments.append(entry)
+    inv["comments"] = comments + list(mine.values())
+    basis = doc.setdefault("test_basis", {}).setdefault("items", [])
+    mine = {b["id"]: b for b in basis if isinstance(b, dict) and "id" in b}
+    merged = []
+    for b in card.get("test_basis_candidates", []):
+        own = mine.pop(b["id"], {})
+        if own.get("text") and own["text"] != b["text"]:
+            rep.warn(b["id"], "metin karttaki kabul kriterinden farklı; JSON'daki kullanıldı")
+        merged.append({**b, **own})
+    merged_ids = {m["id"] for m in merged}
+    doc["test_basis"]["items"] = merged + [b for b in basis if not (isinstance(b, dict) and b.get("id") in merged_ids)]
+
+
+def complete_document(doc, card, rep):
+    """Hesaplanabilen alanları doldurur; LLM bunları yazmak zorunda değildir.
+
+    Yazılmış bir değer hesaplanandan farklıysa hesaplanan geçerlidir ve uyarı
+    verilir; böylece aritmetik bir kayma JSON'un yeniden yazılmasını gerektirmez.
+    """
+    doc.setdefault("schema_version", SCHEMA_VERSION)
+    doc.setdefault("generated_at", datetime.now().astimezone().isoformat(timespec="seconds"))
+    for key in ("conflicts", "assumptions", "out_of_scope", "test_scenarios", "coverage_items", "test_conditions"):
+        doc.setdefault(key, [])
+    if card:
+        merge_card(doc, card, rep)
+    try:
+        _complete_derived(doc, rep)
+    except (KeyError, TypeError, AttributeError, ValueError):
+        pass  # yapı bozuk: şema doğrulaması nedenini söyler
+
+
+def _complete_derived(doc, rep):
+    def settle(obj, field, value, where, what):
+        if obj.get(field) not in (None, value):
+            rep.warn(where, f"{what} '{obj[field]}' yazılmış, hesaplanan '{value}' kullanıldı")
+        obj[field] = value
+
+    questions = {q["id"]: q for q in doc.get("readiness", {}).get("clarification_questions", [])}
+    for q in questions.values():
+        answer = q.get("answer")
+        if answer and answer.get("choice") not in ("other", "unknown") and "text" not in answer:
+            option = next((o for o in q.get("options", []) if o["id"] == answer["choice"]), None)
+            if option:
+                answer["text"] = option["text"]
+    for cond in doc["test_conditions"]:
+        r = cond.get("risk", {})
+        if isinstance(r.get("likelihood"), int) and isinstance(r.get("impact"), int):
+            settle(r, "level", risk_level(r["likelihood"], r["impact"]), cond["id"], "risk seviyesi")
+    conds = {c["id"]: c for c in doc["test_conditions"]}
+    for sc in doc["test_scenarios"]:
+        levels = [conds[c]["risk"]["level"] for c in sc["traceability"]["test_condition_ids"]
+                  if c in conds and "level" in conds[c].get("risk", {})]
+        if levels:
+            settle(sc, "priority", max(levels, key=RISK_ORDER.index), sc["id"], "öncelik")
+        blocking_open = [q for q in sc.get("open_question_ids", [])
+                         if q in questions and questions[q].get("blocking") and not is_answered(questions[q])]
+        settle(sc, "status", "needs_clarification" if blocking_open else "ready", sc["id"], "durum")
+    rd = doc.get("readiness", {})
+    for c in rd.get("checks", []):
+        if c.get("id") in CHECK_CRITERIA:
+            c.setdefault("criterion", CHECK_CRITERIA[c["id"]])
+    checks = {c["id"]: c["result"] for c in rd.get("checks", [])}
+    if set(checks) == set(CHECK_IDS):
+        if any(checks[r] == "fail" for r in ("R2", "R3", "R7", "R10")):
+            status = "not_ready"
+        elif any(v != "pass" for v in checks.values()):
+            status = "partial"
+        else:
+            status = "ready"
+        settle(rd, "status", status, "readiness", "kart durumu")
+    doc["coverage_summary"] = compute_coverage(doc, rep)
+
+
+def compute_coverage(doc, rep):
+    """Kapsam özeti senaryolardan hesaplanır. LLM yalnızca kapsanmayan öğelerin gerekçesini yazar."""
+    given = doc.get("coverage_summary") or {}
+    scenarios, items = doc["test_scenarios"], doc["coverage_items"]
+    covered = {i for s in scenarios for i in s["traceability"]["coverage_item_ids"]}
+    reasons = {u["coverage_item_id"]: u for u in given.get("uncovered_items", []) if "coverage_item_id" in u}
+    uncovered = []
+    for item in items:
+        if item["id"] in covered:
+            continue
+        entry = reasons.pop(item["id"], None)
+        if not entry or not entry.get("reason"):
+            rep.error(item["id"], "hiçbir senaryoda yok; bir senaryoya bağla ya da coverage_summary.uncovered_items "
+                                  "içine gerekçesini yaz")
+            entry = {"coverage_item_id": item["id"], "reason": "gerekçe yazılmadı"}
+        uncovered.append(entry)
+    for item_id in reasons:
+        rep.warn(item_id, "uncovered_items içinde ama bir senaryoda kapsanıyor; listeden çıkarıldı")
+    notes = {b["basis_id"]: b for b in given.get("basis", []) if "basis_id" in b}
+    basis = []
+    for b in doc.get("test_basis", {}).get("items", []):
+        if b.get("kind") not in ("acceptance_criterion", "business_rule"):
+            continue
+        linked = [s for s in scenarios if b["id"] in s["traceability"]["basis_ids"]]
+        status = ("covered" if any(s["status"] == "ready" for s in linked)
+                  else "partially_covered" if linked else "not_covered")
+        own = notes.get(b["id"], {})
+        if own.get("status") in COVERAGE_ORDER:  # LLM daha ihtiyatlıysa (ör. bir taraf eksik) onunki geçerli
+            status = min(status, own["status"], key=COVERAGE_ORDER.index)
+        entry = {"basis_id": b["id"], "scenario_ids": [s["id"] for s in linked], "status": status}
+        if own.get("note"):
+            entry["note"] = own["note"]
+        basis.append(entry)
+    techniques = []
+    for t in dict.fromkeys(i["technique"] for i in items):
+        total = [i for i in items if i["technique"] == t]
+        cov = [i for i in total if i["id"] in covered]
+        techniques.append({"technique": t, "total_items": len(total), "covered_items": len(cov),
+                           "coverage_percent": round(100 * len(cov) / len(total), 2)})
+    types, statuses = Counter(s["scenario_type"] for s in scenarios), Counter(s["status"] for s in scenarios)
+    return {"basis": basis, "techniques": techniques, "uncovered_items": uncovered,
+            "scenario_counts": {"total": len(scenarios), "positive": types["positive"], "negative": types["negative"],
+                                "ready": statuses["ready"], "needs_clarification": statuses["needs_clarification"]}}
+
+
+def prepare(input_path, card_path, schema, rep):
+    """JSON'u okur, karttan ve hesapla tamamlar, doğrular. Okuma hatasında OSError/JSONDecodeError fırlatır."""
+    doc = load_json(input_path)
+    complete_document(doc, load_card(input_path, card_path), rep)
+    check_document(doc, schema, rep)
+    return doc
+
+
 # ------------------------------------------------------------------ doğrulama
 
 def check_schema(doc, schema, rep):
@@ -125,6 +301,8 @@ def check_source(src, where, inv, rep):
             rep.error(where, f"kaynak ek '{names[0]}' işlenmemiş ({inv['attachments'][names[0]]['status']})")
     elif field == "linked_issue" and ref not in inv["linked"]:
         rep.error(where, f"kaynak kart '{ref}' card_inventory.linked_issues içinde yok")
+    elif field == "clarification" and ref not in inv["answered"]:
+        rep.error(where, f"kaynak soru '{ref}' yanıtlanmamış; yanıtı readiness.clarification_questions[].answer içine yaz")
     if field == "comment" and ref in inv["comments"] and inv["comments"][ref]["status"] == "superseded":
         rep.warn(where, f"kaynak yorum '{ref}' geçersiz kılınmış olarak işaretli")
 
@@ -168,14 +346,6 @@ def check_readiness(doc, rep, ids):
     if sorted(checks, key=CHECK_IDS.index) != CHECK_IDS or len(doc["readiness"]["checks"]) != 10:
         rep.error("readiness", "R1–R10 kontrollerinin her biri bir kez yer almalı")
         return
-    if any(checks[r] == "fail" for r in ("R2", "R3", "R7", "R10")):
-        expected = "not_ready"
-    elif any(v != "pass" for v in checks.values()):
-        expected = "partial"
-    else:
-        expected = "ready"
-    if doc["readiness"]["status"] != expected:
-        rep.error("readiness", f"status '{doc['readiness']['status']}' olmalı: '{expected}'")
 
     inv = doc["card_inventory"]
     if any(c["status"] == "unresolved" for c in doc["conflicts"]) and checks["R7"] == "pass":
@@ -196,6 +366,20 @@ def check_readiness(doc, rep, ids):
         for c in q.get("related_conflict_ids", []):
             if c not in ids["conflicts"]:
                 rep.error(q["id"], f"tanımsız çelişki {c}")
+        answer = q.get("answer")
+        if answer:
+            if answer["choice"] == "other" and not answer.get("text"):
+                rep.error(q["id"], "'other' yanıtında text zorunlu")
+            elif answer["choice"] not in ("other", "unknown") and answer["choice"] not in {o["id"] for o in q.get("options", [])}:
+                rep.error(q["id"], f"yanıt '{answer['choice']}' seçeneklerde yok")
+        if is_answered(q) and not any(b.get("source", {}).get("ref") == q["id"] for b in ids["basis"].values()):
+            rep.warn(q["id"], "yanıtlandı ama hiçbir test esası öğesi yanıta dayanmıyor; davranışı değiştiriyorsa "
+                              "kaynağı {field: clarification, ref: " + q["id"] + "} olan bir BR ekle")
+    for cf in doc["conflicts"]:
+        q = ids["questions"].get(cf.get("question_id"))
+        if q and is_answered(q) and cf["status"] == "unresolved":
+            rep.warn(cf["id"], f"{q['id']} yanıtlandı ama çelişki 'unresolved'; yanıttan gelen BR ile "
+                               "resolved_by_later_decision yap")
 
 
 def check_conflicts(doc, rep, ids):
@@ -271,18 +455,6 @@ def check_scenario(sc, doc, rep, ids, basis_texts):
         if a not in ids["assumptions"]:
             rep.error(sid, f"tanımsız varsayım {a}")
 
-    levels = [ids["conds"][c]["risk"]["level"] for c in tr_["test_condition_ids"] if c in ids["conds"]]
-    if levels:
-        expected = max(levels, key=RISK_ORDER.index)
-        if sc["priority"] != expected:
-            rep.error(sid, f"priority '{sc['priority']}' olmalı: '{expected}' (bağlı koşulların en yüksek riski)")
-
-    blocking = [q for q in sc.get("open_question_ids", []) if ids["questions"].get(q, {}).get("blocking")]
-    if is_draft and not blocking:
-        rep.error(sid, "needs_clarification senaryoda en az bir bloklayıcı soru olmalı")
-    if not is_draft and blocking:
-        rep.error(sid, f"ready senaryo bloklayıcı soruya bağlı: {blocking}")
-
     has_background = bool(doc["feature"].get("background"))
     phases = check_steps(sc["steps"], sid, rep, has_background=has_background)
 
@@ -333,20 +505,24 @@ def check_document(doc, schema, rep):
     if rep.errors:
         return  # yapı bozuksa anlamsal kontroller yanıltıcı olur
 
+    questions = doc["readiness"]["clarification_questions"]
     inv = {
         "attachments": {a["name"]: a for a in doc["card_inventory"]["attachments"]},
         "comments": {c["id"]: c for c in doc["card_inventory"]["comments"]},
         "linked": {l["key"] for l in doc["card_inventory"]["linked_issues"]},
+        "answered": {q["id"] for q in questions if is_answered(q)},
     }
     ids = {
         "basis": {b["id"]: b for b in doc["test_basis"]["items"]},
         "conds": {c["id"]: c for c in doc["test_conditions"]},
         "items": {i["id"]: i for i in doc["coverage_items"]},
-        "questions": {q["id"]: q for q in doc["readiness"]["clarification_questions"]},
+        "questions": {q["id"]: q for q in questions},
         "assumptions": {a["id"] for a in doc["assumptions"]},
         "conflicts": {c["id"] for c in doc["conflicts"]},
     }
+    # Beklenen metin karttan ya da kullanıcının seçtiği yanıttan gelebilir.
     basis_texts = [b["text"] for b in doc["test_basis"]["items"]]
+    basis_texts += [q["answer"]["text"] for q in questions if is_answered(q) and q["answer"].get("text")]
     scenarios = doc["test_scenarios"]
 
     check_inventory_and_basis(doc, rep, ids, inv)
@@ -354,9 +530,6 @@ def check_document(doc, schema, rep):
     check_conflicts(doc, rep, ids)
 
     for cond in doc["test_conditions"]:
-        r = cond["risk"]
-        if risk_level(r["likelihood"], r["impact"]) != r["level"]:
-            rep.error(cond["id"], f"risk level '{r['level']}' olmalı: '{risk_level(r['likelihood'], r['impact'])}'")
         for b in cond["basis_ids"]:
             if b not in ids["basis"]:
                 rep.error(cond["id"], f"tanımsız test esası öğesi {b}")
@@ -382,41 +555,10 @@ def check_document(doc, schema, rep):
         check_steps(doc["feature"]["background"], "feature.background", rep, False, is_background=True)
     for sc in scenarios:
         check_scenario(sc, doc, rep, ids, basis_texts)
-
-    # kapsam özeti
-    summary = doc["coverage_summary"]
-    covered = {i for s in scenarios for i in s["traceability"]["coverage_item_ids"]}
-    listed = {u["coverage_item_id"] for u in summary["uncovered_items"]}
-    actual = set(ids["items"]) - covered
-    if listed != actual:
-        rep.error("coverage_summary.uncovered_items", f"listelenen {sorted(listed)}, gerçekte kapsanmayan {sorted(actual)}")
-    for u in summary["uncovered_items"]:
+    # kapsam özeti complete_document'ta hesaplandı; yalnızca LLM'in yazdığı soru bağı denetlenir
+    for u in doc["coverage_summary"]["uncovered_items"]:
         if "question_id" in u and u["question_id"] not in ids["questions"]:
             rep.error("uncovered_items", f"tanımsız soru {u['question_id']}")
-    for t in summary["techniques"]:
-        total = [i for i in ids["items"].values() if i["technique"] == t["technique"]]
-        cov = [i for i in total if i["id"] in covered]
-        pct = round(100 * len(cov) / len(total), 2) if total else 0
-        if (t["total_items"], t["covered_items"]) != (len(total), len(cov)) or abs(t["coverage_percent"] - pct) > 0.01:
-            rep.error(f"coverage_summary {t['technique']}",
-                      f"yazılan {t['covered_items']}/{t['total_items']} %{t['coverage_percent']}, hesaplanan {len(cov)}/{len(total)} %{pct}")
-    requirements = {b for b, item in ids["basis"].items() if item["kind"] in ("acceptance_criterion", "business_rule")}
-    if {b["basis_id"] for b in summary["basis"]} != requirements:
-        rep.error("coverage_summary.basis", f"her AC ve BR öğesi bir kez yer almalı: {sorted(requirements)}")
-    for b in summary["basis"]:
-        actual_ids = sorted(s["id"] for s in scenarios if b["basis_id"] in s["traceability"]["basis_ids"])
-        if sorted(b["scenario_ids"]) != actual_ids:
-            rep.error(f"coverage_summary {b['basis_id']}", f"yazılan {b['scenario_ids']}, hesaplanan {actual_ids}")
-        if not actual_ids and b["status"] != "not_covered":
-            rep.error(f"coverage_summary {b['basis_id']}", "senaryosu yokken status 'not_covered' olmalı")
-    types = Counter(s["scenario_type"] for s in scenarios)
-    statuses = Counter(s["status"] for s in scenarios)
-    expected_counts = {
-        "total": len(scenarios), "positive": types["positive"], "negative": types["negative"],
-        "ready": statuses["ready"], "needs_clarification": statuses["needs_clarification"],
-    }
-    if summary["scenario_counts"] != expected_counts:
-        rep.error("scenario_counts", f"yazılan {summary['scenario_counts']}, hesaplanan {expected_counts}")
 
 
 # ------------------------------------------------------------------ .feature
@@ -456,7 +598,8 @@ def render_scenario(sc, questions, assumptions, items, comments=True):
         out.append(f"    {trace}")
         if draft:
             for q in sc.get("open_question_ids", []):
-                out.append(f"    # Taslak — açık soru {q}: {questions[q]['question']}")
+                if not is_answered(questions[q]):
+                    out.append(f"    # Taslak — açık soru {q}: {questions[q]['question']}")
             for a in sc.get("assumption_ids", []):
                 out.append(f"    # Varsayım {a}: {assumptions[a]['statement']}")
         for note in sc.get("notes", []):
@@ -477,7 +620,7 @@ def render_scenario(sc, questions, assumptions, items, comments=True):
 
 def render_feature(doc, exclude_drafts, rep):
     src, feat, env = doc["source"], doc["feature"], doc["test_environment"]
-    open_q = [q["id"] for q in doc["readiness"]["clarification_questions"]]
+    open_q = [q["id"] for q in doc["readiness"]["clarification_questions"] if not is_answered(q)]
     questions = {q["id"]: q for q in doc["readiness"]["clarification_questions"]}
     assumptions = {a["id"]: a for a in doc["assumptions"]}
     items = {i["id"]: i for i in doc["coverage_items"]}
@@ -524,7 +667,9 @@ def render_report(doc):
     src, rd, inv = doc["source"], doc["readiness"], doc["card_inventory"]
     scenarios = doc["test_scenarios"]
     counts = doc["coverage_summary"]["scenario_counts"]
-    questions = sorted(rd["clarification_questions"], key=lambda q: (not q["blocking"], q["id"]))
+    ordered = sorted(rd["clarification_questions"], key=lambda q: (not q["blocking"], q["id"]))
+    questions = [q for q in ordered if not is_answered(q)]
+    answered = [q for q in ordered if is_answered(q)]
     out = [
         f"# Kart Yeterlilik Raporu — {src['jira_key']}",
         "",
@@ -545,6 +690,13 @@ def render_report(doc):
         )
     else:
         out.append("Açık soru yok.")
+    if answered:
+        out += ["", "## Yanıtlanan sorular", "",
+                "Yanıtlar kullanıcı tarafından seçildi; kart sahibiyle teyit edilmesi önerilir.", ""]
+        out += md_table(["ID", "Soru", "Yanıt"],
+                        [[q["id"], q["question"],
+                          f"{q['answer']['choice']}) {q['answer'].get('text', '')}" if q["answer"]["choice"] != "other"
+                          else f"Diğer: {q['answer']['text']}"] for q in answered])
     out += ["", "## Yeterlilik kontrolleri", ""]
     out += md_table(["ID", "Kontrol", "Sonuç", "Bulgu"],
                     [[c["id"], c["criterion"], tr(c["result"]), c["finding"]] for c in rd["checks"]])
@@ -630,12 +782,29 @@ def read_selection(path):
     return states, dupes
 
 
-def render_selection(doc, previous, rep):
-    """Jira'ya aktarılacak senaryoların işaretlenebilir listesi.
+def selection_states(doc, previous, rep):
+    """Her senaryonun işareti: önceki listedeki işaret aynı ID ve aynı başlıkla korunur.
 
-    Önceki listedeki işaret, aynı ID ve aynı başlıkla korunur. Başlığı değişen
-    ID artık başka bir senaryo olabilir; onun işareti varsayılana döner.
+    Başlığı değişen ID artık başka bir senaryo olabilir; onun işareti varsayılana
+    döner (hazır: işaretli, taslak: işaretsiz).
     """
+    states = {}
+    for sc in doc["test_scenarios"]:
+        checked = sc["status"] != "needs_clarification"
+        if sc["id"] in previous:
+            was_checked, old_title = previous[sc["id"]]
+            if old_title == sc["title"]:
+                checked = was_checked
+            else:
+                rep.warn(f"seçim {sc['id']}", "başlık değişti; işaret varsayılana döndü")
+        states[sc["id"]] = checked
+    for sid in sorted(set(previous) - set(states)):
+        rep.warn(f"seçim {sid}", "JSON'da artık yok; listeden çıkarıldı")
+    return states
+
+
+def render_selection(doc, states):
+    """Test Senaryosu kartına dönüştürülecek senaryoların işaretlenebilir listesi."""
     src = doc["source"]
     scenarios = execution_order(doc["test_scenarios"])
     items = {i["id"]: i for i in doc["coverage_items"]}
@@ -652,26 +821,16 @@ def render_selection(doc, previous, rep):
     ]
     if not scenarios:
         out.append(f"Aktarılacak senaryo yok (kart durumu: {tr(doc['readiness']['status'])}).")
-    selected = 0
     for n, sc in enumerate(scenarios, 1):
         draft = sc["status"] == "needs_clarification"
-        checked = not draft
-        if sc["id"] in previous:
-            was_checked, old_title = previous[sc["id"]]
-            if old_title == sc["title"]:
-                checked = was_checked
-            else:
-                rep.warn(f"seçim {sc['id']}", "başlık değişti; işaret varsayılana döndü")
-        selected += checked
         status = f"taslak ({', '.join(sc.get('open_question_ids', []))})" if draft else "hazır"
         tags = "".join(f" · {t}" for t in sc.get("tags", []))
         flow = "".join(f" · {tr(f.get('flow_type', ''))}" for f in flow_of(sc, items))
-        out.append(f"- [{'x' if checked else ' '}] {n}. {sc['id']}{flow} · {tr(sc['priority'])} · "
+        out.append(f"- [{'x' if states[sc['id']] else ' '}] {n}. {sc['id']}{flow} · {tr(sc['priority'])} · "
                    f"{tr(sc['scenario_type'])} · {status}{tags} — {sc['title']}")
-    for sid in sorted(set(previous) - {s["id"] for s in scenarios}):
-        rep.warn(f"seçim {sid}", "JSON'da artık yok; listeden çıkarıldı")
-    out += ["", "Aktarım: `python <skill-klasörü>/scripts/jira_export.py <KEY>.json <KEY>-secim.md <KEY>-jira.csv`"]
-    return "\n".join(out) + "\n", selected
+    out += ["", "Ekrandan seçim: `<KEY>-secim.html` (işaretle → Jira CSV indir).",
+            "Komutla aktarım: `python <skill-klasörü>/scripts/jira_export.py <KEY>.json <KEY>-secim.md <KEY>-jira.csv`"]
+    return "\n".join(out) + "\n"
 
 
 def main():
@@ -679,26 +838,36 @@ def main():
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(description="scenario-generator JSON → Türkçe Gherkin + yeterlilik raporu")
-    parser.add_argument("input", help="scenario-generator JSON çıktısı")
+    parser = argparse.ArgumentParser(description="scenario-generator JSON → Türkçe Gherkin, rapor, seçim listesi ve ekranı")
+    parser.add_argument("input", help="scenario-generator JSON çıktısı (test-scenarios/<KEY>/<KEY>.json)")
     parser.add_argument("output", nargs="?", help="üretilecek .feature dosyası")
+    parser.add_argument("--all", action="store_true",
+                        help="JSON'un yanına <KEY>.feature, <KEY>-rapor.md, <KEY>-secim.md ve <KEY>-secim.html üret")
     parser.add_argument("--report", help="üretilecek kart yeterlilik raporu (.md)")
-    parser.add_argument("--selection", help="Jira'ya aktarılacak senaryoların seçim listesi (.md); varsa işaretler korunur")
+    parser.add_argument("--selection", help="seçim listesi (.md); varsa işaretler korunur")
+    parser.add_argument("--html", help="senaryoların ekrandan seçildiği sayfa (.html); Jira CSV'sini tarayıcıda üretir")
+    parser.add_argument("--open", action="store_true", help="seçim sayfasını varsayılan tarayıcıda aç")
+    parser.add_argument("--card", help="parse_jira_xml.py çıktısı <KEY>-kart.json (varsayılan: JSON'un yanındaki)")
+    parser.add_argument("--issue-type", default="Test Senaryosu", help="seçim sayfasının CSV'deki kart türü")
     parser.add_argument("--check", action="store_true", help="yalnızca doğrula, dosya üretme")
-    parser.add_argument("--exclude-drafts", action="store_true", help="needs_clarification senaryoları üretme")
+    parser.add_argument("--exclude-drafts", action="store_true", help="needs_clarification senaryoları .feature'a yazma")
     args = parser.parse_args()
-    if not args.check and not args.output and not args.report and not args.selection:
-        parser.error("çıktı dosyası, --report, --selection veya --check verilmeli")
+    if args.all:
+        stem = Path(args.input).with_suffix("")
+        args.output = args.output or f"{stem}.feature"
+        args.report = args.report or f"{stem}-rapor.md"
+        args.selection = args.selection or f"{stem}-secim.md"
+        args.html = args.html or f"{stem}-secim.html"
+    if not (args.check or args.output or args.report or args.selection or args.html):
+        parser.error("--all, çıktı dosyası, --report, --selection, --html veya --check verilmeli")
 
+    rep = Report()
     try:
         schema = load_json(SCHEMA_PATH)
-        doc = load_json(args.input)
+        doc = prepare(args.input, args.card, schema, rep)
     except (OSError, json.JSONDecodeError) as exc:
         print(f"[HATA] dosya okunamadı: {exc}", file=sys.stderr)
         return 2
-
-    rep = Report()
-    check_document(doc, schema, rep)
 
     written = []
     if not rep.errors and not args.check:
@@ -709,15 +878,23 @@ def main():
         if args.report:
             Path(args.report).write_text(render_report(doc), encoding="utf-8")
             written.append(f"{args.report}: yeterlilik raporu")
+        previous = {}
+        if args.selection and Path(args.selection).exists():
+            previous, dupes = read_selection(args.selection)
+            for sid in sorted(set(dupes)):
+                rep.warn(f"seçim {sid}", "listede birden fazla kez geçiyor; son satırdaki işaret kullanıldı")
+        states = selection_states(doc, previous, rep)
+        selected = f"{sum(states.values())}/{len(states)} işaretli"
         if args.selection:
-            previous = {}
-            if Path(args.selection).exists():
-                previous, dupes = read_selection(args.selection)
-                for sid in sorted(set(dupes)):
-                    rep.warn(f"seçim {sid}", "listede birden fazla kez geçiyor; son satırdaki işaret kullanıldı")
-            text, selected = render_selection(doc, previous, rep)
-            Path(args.selection).write_text(text, encoding="utf-8")
-            written.append(f"{args.selection}: seçim listesi ({selected}/{len(doc['test_scenarios'])} işaretli)")
+            Path(args.selection).write_text(render_selection(doc, states), encoding="utf-8")
+            written.append(f"{args.selection}: seçim listesi ({selected})")
+        if args.html:
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import jira_export  # seçim sayfası Jira CSV satırlarını jira_export ile üretir
+            Path(args.html).write_text(jira_export.selection_page(doc, states, args.issue_type), encoding="utf-8")
+            written.append(f"{args.html}: seçim ekranı ({selected})")
+            if args.open:
+                webbrowser.open(Path(args.html).resolve().as_uri())
 
     for line in rep.errors + rep.warnings:
         print(line, file=sys.stderr)

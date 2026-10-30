@@ -181,6 +181,37 @@
       | TR ile başlamıyor, uzunluk 26     | DE330006100519786457841326 | Test Alıcı | 1.000,00 |
       | Uzunluk sınırın altı: 25 karakter | TR33000610051978645784132  | Test Alıcı | 1.000,00 |
 {noformat}","para-transferleri","eft","hata-akisi","negatif","ESUBE-2041",""
+"[TS-ESUBE-2041-006] IBAN alanına 26 karakterden fazlası girilemez","Test Senaryosu","High","ESUBE-2041","hata akışı","1. Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım
+2. Ve Para Transferleri menüsünden EFT ekranını açmışım
+3. Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim","1. Eğer ki Alıcı IBAN alanına ""TR3300061005197864578413261"" yazarsam
+2. O zaman Alıcı IBAN alanında yalnızca ilk 26 karakter görünür
+3. Fakat hata mesajı gösterilmez","1. O zaman Alıcı IBAN alanında yalnızca ilk 26 karakter görünür
+2. Fakat hata mesajı gösterilmez","Uzunluk sınırın üstü: 27 karakter
+* iban: TR3300061005197864578413261","*Amaç:* 26 karakterden uzun IBAN ile izlenen hata akışında alanın 27. karakteri kabul etmediğini doğrulamak (Q-01 yanıtı, BR-03).
+*Akış (hata akışı):* Ana akış; Alıcı IBAN alanına 26 karakterden uzun değer yazılır → 27. karakter girilemez, mesaj gösterilmez (Q-01 yanıtı)
+*Kaynak kart:* ESUBE-2041
+*Öncelik (risk):* yüksek | *Tür:* negatif | *Teknik:* uçtan uca akış, denklik paylarına ayırma, sınır değer analizi
+*İzlenebilirlik:* AC-02, CN-01, BR-03 | COND-02 | UC-HATA-IBANUZUN, EP-IBAN-I3, BVA-IBAN-27
+*Test ortamı:* TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri
+
+{noformat}
+# language: tr
+Özellik: EFT Para Transferi
+
+  Geçmiş:
+    Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım
+    Ve Para Transferleri menüsünden EFT ekranını açmışım
+    Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim
+
+  @TS-ESUBE-2041-006 @negatif
+  Senaryo: IBAN alanına 26 karakterden fazlası girilemez
+    Eğer ki Alıcı IBAN alanına ""TR3300061005197864578413261"" yazarsam
+    O zaman Alıcı IBAN alanında yalnızca ilk 26 karakter görünür
+    Fakat hata mesajı gösterilmez
+{noformat}
+
+*Netleştirmeler (kullanıcı yanıtı):*
+* Q-01: AC-02'ye göre 26 karakterden uzun IBAN'da ""Geçersiz IBAN"" mesajı gösterilmeli; geliştirici yorumuna (C-01) göre alan 26 karakterden fazlasını kabul etmiyor. Beklenen davranış hangisi: 27. karakterin girilememesi mi, mesaj gösterilmesi mi? → 27. karakter girilemez; alan 26 karakterle sınırlıdır ve mesaj gösterilmez (C-01)","para-transferleri","eft","hata-akisi","negatif","ESUBE-2041",""
 "[TS-ESUBE-2041-004] Zorunlu alanlardan biri boş bırakıldığında EFT başlatılmaz ve zorunlu alan mesajı gösterilir","Test Senaryosu","Medium","ESUBE-2041","hata akışı","1. Diyelim ki E-Şube'ye bireysel müşteri olarak giriş yapmışım
 2. Ve Para Transferleri menüsünden EFT ekranını açmışım
 3. Ve Gönderici Hesap listesinden vadesiz TL hesabımı seçmişim

@@ -163,6 +163,11 @@ XML) gelir. Jira'ya bağlanılmaz, oturum açılmaz, ek indirilmez; XML'deki
 `<link>` ve diğer adresler açılmaz. Kart verisinin tek kaynağı XML ve
 kullanıcının isteğe açıkça eklediği dosyalardır.
 
+Bu bölümdeki eşlemeyi `scripts/parse_jira_xml.py` uygular ve sonucu
+`<KEY>-kart.md` ile `<KEY>-kart.json` olarak yazar; LLM XML'i okumaz. Bölüm,
+script çalıştırılamadığında (Python yok) XML'in elle nasıl okunacağını ve
+script'in neyi neye eşlediğini belgeler.
+
 ### 9.1 Öğe eşlemesi
 
 Her kart, `<rss><channel>` altındaki bir `<item>` öğesidir. Birden fazla

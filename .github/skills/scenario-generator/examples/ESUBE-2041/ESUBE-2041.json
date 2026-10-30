@@ -1,82 +1,11 @@
 {
-  "schema_version": "3.0.0",
-  "generated_at": "2026-10-25T23:30:00+03:00",
-  "source": {
-    "jira_key": "ESUBE-2041",
-    "issue_type": "story",
-    "summary": "E-Şube'den EFT ile para gönderme",
-    "components": [
-      "Para Transferleri"
-    ],
-    "labels": [
-      "eft"
-    ],
-    "jira_priority": "High"
-  },
+  "schema_version": "3.1.0",
   "card_inventory": {
     "fields": [
-      {
-        "field": "summary",
-        "status": "used"
-      },
-      {
-        "field": "issue_type",
-        "status": "used",
-        "note": "Story"
-      },
-      {
-        "field": "description",
-        "status": "used",
-        "note": "Kullanıcı hikâyesi, ekran yolu, gönderici hesap seçimi, eklere atıf"
-      },
-      {
-        "field": "acceptance_criteria",
-        "status": "used",
-        "note": "4 kabul kriteri"
-      },
-      {
-        "field": "environment",
-        "status": "used",
-        "note": "TEST ortamı, E-Şube web, Chrome"
-      },
-      {
-        "field": "priority",
-        "status": "used",
-        "note": "High → risk etki puanına girdi"
-      },
-      {
-        "field": "labels",
-        "status": "used",
-        "note": "eft"
-      },
-      {
-        "field": "components",
-        "status": "used",
-        "note": "Para Transferleri"
-      },
       {
         "field": "affects_versions",
         "status": "not_relevant",
         "note": "Story kartı"
-      },
-      {
-        "field": "fix_versions",
-        "status": "used",
-        "note": "E-Şube 4.12"
-      },
-      {
-        "field": "reporter",
-        "status": "used",
-        "note": "A. Yılmaz; yorum yazarlarının rolünü belirlemede kullanıldı"
-      },
-      {
-        "field": "subtasks",
-        "status": "empty"
-      },
-      {
-        "field": "custom_fields",
-        "status": "empty",
-        "note": "Test Notları alanı boş"
       }
     ],
     "attachments": [
@@ -110,8 +39,6 @@
     "comments": [
       {
         "id": "C-01",
-        "author": "M. Kaya",
-        "date": "2026-10-20",
         "role": "developer",
         "status": "used",
         "summary": "IBAN alanında 26 karakter sınırı (maxlength) tanımlı.",
@@ -121,8 +48,6 @@
       },
       {
         "id": "C-02",
-        "author": "A. Yılmaz",
-        "date": "2026-10-21",
         "role": "product_owner",
         "status": "used",
         "summary": "Alıcı Adı Soyadı da zorunlu; AC-01 buna göre güncellendi.",
@@ -132,8 +57,6 @@
       },
       {
         "id": "C-03",
-        "author": "A. Yılmaz",
-        "date": "2026-10-22",
         "role": "product_owner",
         "status": "used",
         "summary": "Kurumsal müşteriler bu kartın kapsamında değil.",
@@ -147,8 +70,7 @@
         "status": "used",
         "note": "Para transferleri yenileme epic'i; bağlam için okundu, ek kural gelmedi."
       }
-    ],
-    "external_links": []
+    ]
   },
   "test_environment": {
     "summary": "TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri",
@@ -192,68 +114,57 @@
     ]
   },
   "readiness": {
-    "status": "partial",
-    "summary": "Kart büyük ölçüde test edilebilir. 26 karakterden uzun IBAN'daki davranış çelişkili (CF-01), yetersiz bakiye davranışı tanımsız ve akış videosu işlenemedi.",
+    "summary": "Kart büyük ölçüde test edilebilir. IBAN uzunluğu çelişkisi Q-01 yanıtıyla çözüldü; yetersiz bakiye davranışı tanımsız ve akış videosu işlenemedi.",
     "checks": [
       {
         "id": "R1",
-        "criterion": "Amaç: ne, kimin için, neden",
         "result": "pass",
         "finding": "Kullanıcı hikâyesi: bireysel müşteri E-Şube'den başka bankadaki hesaba para göndermek istiyor."
       },
       {
         "id": "R2",
-        "criterion": "Test edilecek gereksinim var",
         "result": "pass",
         "finding": "4 kabul kriteri, ekteki limit tablosu ve ürün sahibi yorumundan 2 iş kuralı."
       },
       {
         "id": "R3",
-        "criterion": "Gereksinimler test edilebilir",
         "result": "pass",
         "finding": "Tüm gereksinimler gözlemlenebilir sonuç tanımlıyor; tutar limitleri ekteki tablodan alındı."
       },
       {
         "id": "R4",
-        "criterion": "Veri kuralları",
         "result": "pass",
         "finding": "IBAN formatı, tutar limitleri (eft-limitleri.xlsx) ve zorunlu alanlar (AC-01, C-02) tanımlı."
       },
       {
         "id": "R5",
-        "criterion": "Hata ve olumsuz durumlardaki davranış",
         "result": "partial",
         "finding": "Zorunlu alan, IBAN ve limit hatalarının mesajları var. Tutar bakiyeden büyükse ne olacağı yazılmamış."
       },
       {
         "id": "R6",
-        "criterion": "Roller, yetkiler, ön koşullar",
         "result": "pass",
         "finding": "Bireysel müşteri; kurumsal müşteri C-03 ile kapsam dışı bırakıldı."
       },
       {
         "id": "R7",
-        "criterion": "Alanlar arası tutarlılık",
-        "result": "partial",
-        "finding": "CF-01 (AC-02 ile geliştirici yorumu C-01) çözülmedi. CF-02 (AC-01 ile ekran tasarımı) C-02 ile çözüldü."
+        "result": "pass",
+        "finding": "CF-01 Q-01 yanıtıyla (BR-03) çözüldü; CF-02 C-02 ile çözüldü."
       },
       {
         "id": "R8",
-        "criterion": "Kapsam sınırı",
         "result": "pass",
         "finding": "E-Şube web, ana sayfa → Para Transferleri → EFT ekranı."
       },
       {
         "id": "R9",
-        "criterion": "Test ortamı",
         "result": "pass",
         "finding": "Environment alanı: TEST, E-Şube web, Chrome. Sürüm fix version alanından: 4.12."
       },
       {
         "id": "R10",
-        "criterion": "Ekler ve bağlantılar işlendi",
         "result": "partial",
-        "finding": "3 ekten 2'si işlendi; mevcut-akis-kaydi.mp4 okunamadı."
+        "finding": "Ekran tasarımı ve limit tablosu dosya olarak paylaşıldı ve işlendi; mevcut-akis-kaydi.mp4 okunamadı; ESUBE-2039 ve EFT akışı sayfası açılmadı (XML'de yalnızca anahtar / adres)."
       }
     ],
     "clarification_questions": [
@@ -271,7 +182,20 @@
           "CF-01"
         ],
         "blocking": true,
-        "addressed_to": "product_owner"
+        "addressed_to": "product_owner",
+        "options": [
+          {
+            "id": "a",
+            "text": "27. karakter girilemez; alan 26 karakterle sınırlıdır ve mesaj gösterilmez (C-01)"
+          },
+          {
+            "id": "b",
+            "text": "27. karakter girilebilir ve \"Geçersiz IBAN\" mesajı gösterilir (AC-02)"
+          }
+        ],
+        "answer": {
+          "choice": "a"
+        }
       },
       {
         "id": "Q-02",
@@ -280,7 +204,17 @@
           "R5"
         ],
         "blocking": false,
-        "addressed_to": "product_owner"
+        "addressed_to": "product_owner",
+        "options": [
+          {
+            "id": "a",
+            "text": "EFT başlatılmaz ve yetersiz bakiye mesajı gösterilir (mesaj metni ürün sahibinden alınır)"
+          },
+          {
+            "id": "b",
+            "text": "Gönder butonu pasif kalır, mesaj gösterilmez"
+          }
+        ]
       },
       {
         "id": "Q-03",
@@ -289,51 +223,24 @@
           "R10"
         ],
         "blocking": false,
-        "addressed_to": "product_owner"
+        "addressed_to": "product_owner",
+        "options": [
+          {
+            "id": "a",
+            "text": "Videoda kartta olmayan bir kural veya adım yok"
+          },
+          {
+            "id": "b",
+            "text": "Var; içeriği karta metin olarak eklenecek"
+          }
+        ]
       }
     ]
   },
   "test_basis": {
     "items": [
       {
-        "id": "AC-01",
-        "kind": "acceptance_criterion",
-        "text": "Alıcı IBAN ve tutar alanları zorunludur. Biri boş bırakılıp Gönder butonuna basılırsa işlem başlatılmaz ve \"Lütfen zorunlu alanları doldurunuz\" mesajı gösterilir.",
-        "source": {
-          "field": "acceptance_criteria"
-        },
-        "format": "rule",
-        "testability": "testable"
-      },
-      {
         "id": "AC-02",
-        "kind": "acceptance_criterion",
-        "text": "Alıcı IBAN \"TR\" ile başlamalı ve 26 karakter olmalıdır. Aksi halde \"Geçersiz IBAN\" mesajı gösterilir.",
-        "source": {
-          "field": "acceptance_criteria"
-        },
-        "format": "rule",
-        "testability": "partially_testable",
-        "issue": "26 karakterden uzun IBAN için beklenen davranış geliştirici yorumuyla çelişiyor (CF-01, Q-01)."
-      },
-      {
-        "id": "AC-03",
-        "kind": "acceptance_criterion",
-        "text": "Tutar, ekteki limit tablosundaki (eft-limitleri.xlsx) bireysel müşteri limitleri içinde olmalıdır. Limit dışındaki tutarda uyarı gösterilir ve işlem başlatılmaz.",
-        "source": {
-          "field": "acceptance_criteria"
-        },
-        "format": "rule",
-        "testability": "testable"
-      },
-      {
-        "id": "AC-04",
-        "kind": "acceptance_criterion",
-        "text": "Başarılı işlemde \"İşleminiz başarıyla gerçekleştirilmiştir\" mesajı ve dekont numarası gösterilir.",
-        "source": {
-          "field": "acceptance_criteria"
-        },
-        "format": "rule",
         "testability": "testable"
       },
       {
@@ -387,6 +294,20 @@
           "field": "comment",
           "ref": "C-01"
         }
+      },
+      {
+        "id": "BR-03",
+        "kind": "business_rule",
+        "text": "27. karakter girilemez; alan 26 karakterle sınırlıdır ve mesaj gösterilmez (C-01)",
+        "source": {
+          "field": "clarification",
+          "ref": "Q-01"
+        },
+        "format": "rule",
+        "testability": "testable",
+        "updates": [
+          "AC-02"
+        ]
       }
     ]
   },
@@ -398,8 +319,9 @@
         "AC-02",
         "CN-01"
       ],
-      "status": "unresolved",
-      "question_id": "Q-01"
+      "status": "resolved_by_later_decision",
+      "question_id": "Q-01",
+      "resolved_by": "BR-03"
     },
     {
       "id": "CF-02",
@@ -424,7 +346,6 @@
       "risk": {
         "likelihood": 2,
         "impact": 2,
-        "level": "medium",
         "rationale": "Basit doğrulama, ancak kural sonradan değişti (C-02); eksik kontrol para çıkışına yol açmaz."
       },
       "techniques": [
@@ -438,12 +359,12 @@
       "description": "Alıcı IBAN format doğrulaması",
       "basis_ids": [
         "AC-02",
-        "CN-01"
+        "CN-01",
+        "BR-03"
       ],
       "risk": {
         "likelihood": 2,
         "impact": 3,
-        "level": "high",
         "rationale": "Hatalı IBAN'ın kabulü paranın geçersiz veya yanlış hesaba gönderilmesine yol açar."
       },
       "techniques": [
@@ -463,7 +384,6 @@
       "risk": {
         "likelihood": 2,
         "impact": 3,
-        "level": "high",
         "rationale": "Sınırda yanlış karşılaştırma limit dışı para çıkışına yol açar; Jira önceliği High."
       },
       "techniques": [
@@ -481,7 +401,6 @@
       "risk": {
         "likelihood": 2,
         "impact": 3,
-        "level": "high",
         "rationale": "Ana para transferi akışı; hata doğrudan müşteri parasını etkiler."
       },
       "techniques": [
@@ -547,7 +466,7 @@
       "test_condition_ids": [
         "COND-02"
       ],
-      "description": "Ana akış; Alıcı IBAN 26 karakterden uzun → beklenen davranış belirsiz (CF-01, Q-01)"
+      "description": "Ana akış; Alıcı IBAN alanına 26 karakterden uzun değer yazılır → 27. karakter girilemez, mesaj gösterilmez (Q-01 yanıtı)"
     },
     {
       "id": "EP-REQ-V",
@@ -774,7 +693,6 @@
       "id": "TS-ESUBE-2041-001",
       "title": "Geçerli bilgilerle gönderilen EFT tamamlanır ve dekont numarası gösterilir",
       "objective": "Ana akışı uçtan uca doğrulamak: geçerli alıcı bilgileri ve limit içindeki tutarlarla (tipik değer ve sınırlar) EFT'nin tamamlandığını, başarı mesajının ve dekont numarasının gösterildiğini görmek.",
-      "status": "ready",
       "scenario_type": "positive",
       "test_level": "system",
       "test_type": "functional",
@@ -784,7 +702,6 @@
         "equivalence_partitioning",
         "boundary_value_analysis"
       ],
-      "priority": "high",
       "traceability": {
         "basis_ids": [
           "AC-01",
@@ -917,7 +834,6 @@
       "id": "TS-ESUBE-2041-002",
       "title": "Gönder butonuna art arda iki kez basıldığında tek EFT işlemi oluşur",
       "objective": "Ana akışın tekrar gönderimle izlendiği alternatif akışta mükerrer EFT oluşmadığını doğrulamak (hata tahmini).",
-      "status": "ready",
       "scenario_type": "negative",
       "test_level": "system",
       "test_type": "functional",
@@ -925,7 +841,6 @@
         "use_case_based",
         "error_guessing"
       ],
-      "priority": "high",
       "traceability": {
         "basis_ids": [
           "AC-04"
@@ -1006,7 +921,6 @@
       "id": "TS-ESUBE-2041-003",
       "title": "Tutar limit dışında olduğunda EFT başlatılmaz ve limit uyarısı gösterilir",
       "objective": "Limit dışı tutarla izlenen hata akışında uyarının gösterildiğini ve EFT'nin başlatılmadığını doğrulamak.",
-      "status": "ready",
       "scenario_type": "negative",
       "test_level": "system",
       "test_type": "functional",
@@ -1015,7 +929,6 @@
         "boundary_value_analysis",
         "equivalence_partitioning"
       ],
-      "priority": "high",
       "traceability": {
         "basis_ids": [
           "AC-03",
@@ -1107,7 +1020,6 @@
       "id": "TS-ESUBE-2041-004",
       "title": "Zorunlu alanlardan biri boş bırakıldığında EFT başlatılmaz ve zorunlu alan mesajı gösterilir",
       "objective": "Alıcı IBAN, Alıcı Adı Soyadı veya Tutar alanı boşken izlenen hata akışında mesajın gösterildiğini ve EFT'nin başlatılmadığını doğrulamak.",
-      "status": "ready",
       "scenario_type": "negative",
       "test_level": "system",
       "test_type": "functional",
@@ -1116,7 +1028,6 @@
         "acceptance_criteria_based",
         "equivalence_partitioning"
       ],
-      "priority": "medium",
       "traceability": {
         "basis_ids": [
           "AC-01",
@@ -1216,7 +1127,6 @@
       "id": "TS-ESUBE-2041-005",
       "title": "IBAN TR ile başlamadığında veya 26 karakterden kısa olduğunda EFT başlatılmaz",
       "objective": "Geçersiz IBAN biçimiyle izlenen hata akışında mesajın gösterildiğini ve EFT'nin başlatılmadığını doğrulamak. Her satırda tek bir geçersiz özellik var.",
-      "status": "ready",
       "scenario_type": "negative",
       "test_level": "system",
       "test_type": "functional",
@@ -1225,7 +1135,6 @@
         "equivalence_partitioning",
         "boundary_value_analysis"
       ],
-      "priority": "high",
       "traceability": {
         "basis_ids": [
           "AC-02"
@@ -1309,9 +1218,8 @@
     },
     {
       "id": "TS-ESUBE-2041-006",
-      "title": "IBAN 26 karakterden uzun girildiğinde Geçersiz IBAN mesajı gösterilir",
-      "objective": "26 karakterden uzun IBAN ile izlenen hata akışını doğrulamak. Beklenen davranış CF-01 çelişkisi nedeniyle netleşmedi; AC-02'ye dayalı varsayımla yazıldı.",
-      "status": "needs_clarification",
+      "title": "IBAN alanına 26 karakterden fazlası girilemez",
+      "objective": "26 karakterden uzun IBAN ile izlenen hata akışında alanın 27. karakteri kabul etmediğini doğrulamak (Q-01 yanıtı, BR-03).",
       "scenario_type": "negative",
       "test_level": "system",
       "test_type": "functional",
@@ -1320,11 +1228,11 @@
         "equivalence_partitioning",
         "boundary_value_analysis"
       ],
-      "priority": "high",
       "traceability": {
         "basis_ids": [
           "AC-02",
-          "CN-01"
+          "CN-01",
+          "BR-03"
         ],
         "test_condition_ids": [
           "COND-02"
@@ -1337,47 +1245,23 @@
       },
       "steps": [
         {
-          "keyword": "given",
-          "text": "gönderici hesabımda en az \"<tutar>\" TL kullanılabilir bakiye var"
-        },
-        {
           "keyword": "when",
           "text": "Alıcı IBAN alanına \"<iban>\" yazarsam"
         },
         {
-          "keyword": "and",
-          "text": "Alıcı Adı Soyadı alanına \"<ad_soyad>\" yazarsam"
-        },
-        {
-          "keyword": "and",
-          "text": "Tutar alanına \"<tutar>\" yazarsam"
-        },
-        {
-          "keyword": "and",
-          "text": "Gönder butonuna basarsam"
-        },
-        {
           "keyword": "then",
-          "text": "\"Geçersiz IBAN\" mesajını görürüm"
+          "text": "Alıcı IBAN alanında yalnızca ilk 26 karakter görünür"
         },
         {
           "keyword": "but",
-          "text": "işlem başlatılmaz"
+          "text": "hata mesajı gösterilmez"
         }
       ],
       "test_data": {
         "parameters": [
           {
             "name": "iban",
-            "description": "Alıcı IBAN"
-          },
-          {
-            "name": "ad_soyad",
-            "description": "Alıcı adı soyadı"
-          },
-          {
-            "name": "tutar",
-            "description": "EFT tutarı (TL, kartta geçen biçimde)"
+            "description": "Alıcı IBAN (27 karakter)"
           }
         ],
         "data_sets": [
@@ -1385,116 +1269,17 @@
             "id": "DS-01",
             "label": "Uzunluk sınırın üstü: 27 karakter",
             "values": {
-              "iban": "TR3300061005197864578413261",
-              "ad_soyad": "Test Alıcı",
-              "tutar": "1.000,00"
+              "iban": "TR3300061005197864578413261"
             }
           }
         ]
       },
       "open_question_ids": [
         "Q-01"
-      ],
-      "assumption_ids": [
-        "A-01"
       ]
     }
   ],
-  "coverage_summary": {
-    "basis": [
-      {
-        "basis_id": "AC-01",
-        "scenario_ids": [
-          "TS-ESUBE-2041-001",
-          "TS-ESUBE-2041-004"
-        ],
-        "status": "covered"
-      },
-      {
-        "basis_id": "AC-02",
-        "scenario_ids": [
-          "TS-ESUBE-2041-001",
-          "TS-ESUBE-2041-005",
-          "TS-ESUBE-2041-006"
-        ],
-        "status": "partially_covered",
-        "note": "26 karakterden uzun IBAN senaryosu (TS-ESUBE-2041-006) Q-01 yanıtını bekliyor."
-      },
-      {
-        "basis_id": "AC-03",
-        "scenario_ids": [
-          "TS-ESUBE-2041-001",
-          "TS-ESUBE-2041-003"
-        ],
-        "status": "covered"
-      },
-      {
-        "basis_id": "AC-04",
-        "scenario_ids": [
-          "TS-ESUBE-2041-001",
-          "TS-ESUBE-2041-002"
-        ],
-        "status": "covered"
-      },
-      {
-        "basis_id": "BR-01",
-        "scenario_ids": [
-          "TS-ESUBE-2041-001",
-          "TS-ESUBE-2041-003"
-        ],
-        "status": "covered"
-      },
-      {
-        "basis_id": "BR-02",
-        "scenario_ids": [
-          "TS-ESUBE-2041-001",
-          "TS-ESUBE-2041-004"
-        ],
-        "status": "covered"
-      }
-    ],
-    "techniques": [
-      {
-        "technique": "use_case_based",
-        "total_items": 6,
-        "covered_items": 6,
-        "coverage_percent": 100.0
-      },
-      {
-        "technique": "equivalence_partitioning",
-        "total_items": 11,
-        "covered_items": 11,
-        "coverage_percent": 100.0
-      },
-      {
-        "technique": "boundary_value_analysis",
-        "total_items": 9,
-        "covered_items": 9,
-        "coverage_percent": 100.0
-      },
-      {
-        "technique": "error_guessing",
-        "total_items": 1,
-        "covered_items": 1,
-        "coverage_percent": 100.0
-      }
-    ],
-    "uncovered_items": [],
-    "scenario_counts": {
-      "total": 6,
-      "positive": 1,
-      "negative": 5,
-      "ready": 5,
-      "needs_clarification": 1
-    }
-  },
-  "assumptions": [
-    {
-      "id": "A-01",
-      "statement": "26 karakterden uzun IBAN girilebiliyorsa AC-02'deki \"Geçersiz IBAN\" mesajı gösterilir.",
-      "question_id": "Q-01"
-    }
-  ],
+  "assumptions": [],
   "out_of_scope": [
     {
       "item": "Kurumsal müşteri EFT'si",

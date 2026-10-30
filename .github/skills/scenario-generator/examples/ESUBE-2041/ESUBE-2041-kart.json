@@ -1,0 +1,185 @@
+{
+  "source": {
+    "jira_key": "ESUBE-2041",
+    "issue_type": "story",
+    "summary": "E-Şube'den EFT ile para gönderme",
+    "url": "https://jira.example.test/browse/ESUBE-2041",
+    "components": [
+      "Para Transferleri"
+    ],
+    "labels": [
+      "eft"
+    ],
+    "jira_priority": "High"
+  },
+  "card_inventory": {
+    "fields": [
+      {
+        "field": "summary",
+        "status": "used"
+      },
+      {
+        "field": "issue_type",
+        "status": "used",
+        "note": "Story"
+      },
+      {
+        "field": "description",
+        "status": "used"
+      },
+      {
+        "field": "acceptance_criteria",
+        "status": "used",
+        "note": "Özel alan: Acceptance Criteria"
+      },
+      {
+        "field": "environment",
+        "status": "used"
+      },
+      {
+        "field": "priority",
+        "status": "used"
+      },
+      {
+        "field": "labels",
+        "status": "used"
+      },
+      {
+        "field": "components",
+        "status": "used"
+      },
+      {
+        "field": "affects_versions",
+        "status": "empty"
+      },
+      {
+        "field": "fix_versions",
+        "status": "used"
+      },
+      {
+        "field": "reporter",
+        "status": "used"
+      },
+      {
+        "field": "assignee",
+        "status": "used"
+      },
+      {
+        "field": "subtasks",
+        "status": "empty"
+      },
+      {
+        "field": "custom_fields",
+        "status": "empty"
+      }
+    ],
+    "attachments": [
+      {
+        "name": "eft-ekran-tasarimi.png",
+        "type": "image",
+        "status": "not_provided",
+        "summary": "XML'de yalnızca ek adı var; içerik paylaşılmadı.",
+        "basis_ids": []
+      },
+      {
+        "name": "eft-limitleri.xlsx",
+        "type": "spreadsheet",
+        "status": "not_provided",
+        "summary": "XML'de yalnızca ek adı var; içerik paylaşılmadı.",
+        "basis_ids": []
+      },
+      {
+        "name": "mevcut-akis-kaydi.mp4",
+        "type": "video",
+        "status": "not_provided",
+        "summary": "XML'de yalnızca ek adı var; içerik paylaşılmadı.",
+        "basis_ids": []
+      }
+    ],
+    "comments": [
+      {
+        "id": "C-01",
+        "author": "mkaya",
+        "date": "2026-10-20"
+      },
+      {
+        "id": "C-02",
+        "author": "ayilmaz",
+        "date": "2026-10-21"
+      },
+      {
+        "id": "C-03",
+        "author": "ayilmaz",
+        "date": "2026-10-22"
+      }
+    ],
+    "linked_issues": [
+      {
+        "key": "ESUBE-1980",
+        "link_type": "epic",
+        "status": "not_accessible",
+        "note": "epic; XML'de yalnızca anahtar var"
+      },
+      {
+        "key": "ESUBE-2039",
+        "link_type": "relates to",
+        "status": "not_accessible",
+        "note": "relates to; XML'de yalnızca anahtar var"
+      }
+    ],
+    "external_links": [
+      {
+        "name": "https://wiki.example.test/display/ESUBE/EFT+Akisi",
+        "status": "not_accessible",
+        "note": "XML modunda bağlantı açılmaz"
+      }
+    ]
+  },
+  "test_basis_candidates": [
+    {
+      "id": "AC-01",
+      "kind": "acceptance_criterion",
+      "text": "Alıcı IBAN ve tutar alanları zorunludur. Biri boş bırakılıp Gönder butonuna basılırsa işlem başlatılmaz ve \"Lütfen zorunlu alanları doldurunuz\" mesajı gösterilir.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-02",
+      "kind": "acceptance_criterion",
+      "text": "Alıcı IBAN \"TR\" ile başlamalı ve 26 karakter olmalıdır. Aksi halde \"Geçersiz IBAN\" mesajı gösterilir.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-03",
+      "kind": "acceptance_criterion",
+      "text": "Tutar, ekteki limit tablosundaki (eft-limitleri.xlsx) bireysel müşteri limitleri içinde olmalıdır. Limit dışındaki tutarda uyarı gösterilir ve işlem başlatılmaz.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-04",
+      "kind": "acceptance_criterion",
+      "text": "Başarılı işlemde \"İşleminiz başarıyla gerçekleştirilmiştir\" mesajı ve dekont numarası gösterilir.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    }
+  ],
+  "comment_texts": {
+    "C-01": "IBAN alanında maxlength=26 tanımlı; 26 karakterden fazlası girilemiyor.",
+    "C-02": "Tasarımdaki gibi Alıcı Adı Soyadı da zorunlu olacak; AC-01 bu şekilde güncellenmiş kabul edilsin.",
+    "C-03": "Kurumsal müşteriler bu kartın kapsamında değil, ayrı kartta ele alınacak."
+  }
+}

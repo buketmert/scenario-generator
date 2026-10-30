@@ -1,7 +1,7 @@
 # language: tr
 # Kaynak: ESUBE-2041 — E-Şube'den EFT ile para gönderme
 # Test ortamı: TEST ortamı, E-Şube web, Chrome, sürüm 4.12, bireysel müşteri
-# Kart durumu: partial | Açık sorular: Q-01, Q-02, Q-03
+# Kart durumu: partial | Açık sorular: Q-02, Q-03
 # Bu dosya scenario-generator çıktısından üretilmiştir.
 
 @ESUBE-2041 @para-transferleri @eft
@@ -103,17 +103,11 @@
       | TR ile başlamıyor, uzunluk 26     | DE330006100519786457841326 | Test Alıcı | 1.000,00 |
       | Uzunluk sınırın altı: 25 karakter | TR33000610051978645784132  | Test Alıcı | 1.000,00 |
 
-  @TS-ESUBE-2041-006 @negatif @taslak
-  Senaryo: IBAN 26 karakterden uzun girildiğinde Geçersiz IBAN mesajı gösterilir
-    # Akış (hata akışı): Ana akış; Alıcı IBAN 26 karakterden uzun → beklenen davranış belirsiz (CF-01, Q-01)
-    # Kaynak: AC-02, CN-01 | COND-02 | UC-HATA-IBANUZUN, EP-IBAN-I3, BVA-IBAN-27
-    # Taslak — açık soru Q-01: AC-02'ye göre 26 karakterden uzun IBAN'da "Geçersiz IBAN" mesajı gösterilmeli; geliştirici yorumuna (C-01) göre alan 26 karakterden fazlasını kabul etmiyor. Beklenen davranış hangisi: 27. karakterin girilememesi mi, mesaj gösterilmesi mi?
-    # Varsayım A-01: 26 karakterden uzun IBAN girilebiliyorsa AC-02'deki "Geçersiz IBAN" mesajı gösterilir.
+  @TS-ESUBE-2041-006 @negatif
+  Senaryo: IBAN alanına 26 karakterden fazlası girilemez
+    # Akış (hata akışı): Ana akış; Alıcı IBAN alanına 26 karakterden uzun değer yazılır → 27. karakter girilemez, mesaj gösterilmez (Q-01 yanıtı)
+    # Kaynak: AC-02, CN-01, BR-03 | COND-02 | UC-HATA-IBANUZUN, EP-IBAN-I3, BVA-IBAN-27
     # Veri: Uzunluk sınırın üstü: 27 karakter
-    Diyelim ki gönderici hesabımda en az "1.000,00" TL kullanılabilir bakiye var
     Eğer ki Alıcı IBAN alanına "TR3300061005197864578413261" yazarsam
-    Ve Alıcı Adı Soyadı alanına "Test Alıcı" yazarsam
-    Ve Tutar alanına "1.000,00" yazarsam
-    Ve Gönder butonuna basarsam
-    O zaman "Geçersiz IBAN" mesajını görürüm
-    Fakat işlem başlatılmaz
+    O zaman Alıcı IBAN alanında yalnızca ilk 26 karakter görünür
+    Fakat hata mesajı gösterilmez
