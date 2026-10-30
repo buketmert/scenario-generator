@@ -56,6 +56,9 @@ TECHNIQUES = {
     "checklist_based": "kontrol listesi",
 }
 FLOW_LABELS = {"main": "ana-akis", "alternative": "alternatif-akis", "exception": "hata-akisi"}
+# Test kartının kaynak kartı test ettiğini anlatan bağlantı açıklamaları (keşif için)
+TESTS_OUTWARD = ("tests", "test eder", "test ediyor")
+TESTS_INWARD = ("is tested by", "test edilir", "tarafından test edilir")
 # Kurum alanlarını adından tahmin etmek için (yalnızca --kesfet önerisi; ayar kullanıcıyındır)
 FIELD_HINTS = {"on_kosullar": ("ön koşul", "on kosul", "precondition"),
                "test_adimlari": ("adım", "adim", "step"),
@@ -268,6 +271,38 @@ def link_body(cfg, test_key, source_key):
     return {"type": {"name": link["tur"]}, "outwardIssue": source, "inwardIssue": test}
 
 
+def check_link_direction(jira, cfg, test_key, source_key):
+    """Kurulan bağlantının yönünü, kaynak kartta görünen açıklamadan denetler.
+
+    Jira, bir kartın bağlantılarında karşı kartı `inwardIssue` alanında veriyorsa
+    iç (inward) açıklamayı, `outwardIssue` alanında veriyorsa çıkış açıklamasını
+    gösterir. Doğru sonuç, kaynak kartta "<kaynak> is tested by <test>"
+    görünmesidir. API'nin alanları nasıl yorumladığından bağımsızdır; ters çıkarsa
+    `baglanti.test_karti` çevrilir. Dönüş: (True | False | None, açıklama).
+    None: denetlenemedi ya da bağlantı türü "tests / is tested by" değil.
+    """
+    try:
+        data = jira.request("GET", f"/rest/api/2/issue/{urllib.parse.quote(source_key)}?fields=issuelinks")
+    except JiraHatasi as exc:
+        return None, f"bağlantı yönü denetlenemedi: {exc}"
+    wanted = cfg["baglanti"]["tur"].lower()
+    for link in (data.get("fields") or {}).get("issuelinks", []):
+        ltype = link.get("type") or {}
+        if ltype.get("name", "").lower() != wanted:
+            continue
+        for side in ("inwardIssue", "outwardIssue"):
+            if (link.get(side) or {}).get("key") != test_key:
+                continue
+            label = (ltype.get("inward") if side == "inwardIssue" else ltype.get("outward")) or ""
+            note = f"{source_key} kartında '{label} {test_key}' görünüyor"
+            if label.strip().lower() in TESTS_INWARD:
+                return True, note
+            if label.strip().lower() in TESTS_OUTWARD:
+                return False, note
+            return None, note  # "tests" türü değil (Relates gibi): yön anlamsız
+    return None, f"{source_key} kartında {test_key} bağlantısı bulunamadı"
+
+
 # ------------------------------------------------------------------ oluşturma
 
 def record_path(json_path):
@@ -287,6 +322,7 @@ def create_cards(doc, ids, cfg, jira, record_file, dry_run=False):
     results = [{"id": i, "durum": "hata", "mesaj": "JSON'da böyle bir senaryo yok"} for i in unknown]
     source_key = doc["source"]["jira_key"]
     stop = None
+    direction_checked = False
     for sc in rg.execution_order([by_id[i] for i in ids if i in by_id]):
         sid = sc["id"]
         if sid in record:
@@ -312,8 +348,19 @@ def create_cards(doc, ids, cfg, jira, record_file, dry_run=False):
         Path(record_file).write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         try:
             jira.request("POST", "/rest/api/2/issueLink", link_body(cfg, key, source_key))
-            record[sid]["baglandi"] = True
-            results.append({"id": sid, "durum": "acildi", "key": key, "url": url})
+            ok, note = (None, "")
+            if not direction_checked:  # yön her çalıştırmada ilk bağlantıda bir kez denetlenir
+                direction_checked = True
+                ok, note = check_link_direction(jira, cfg, key, source_key)
+            if ok is False:
+                other = "inward" if cfg["baglanti"].get("test_karti", "outward") == "outward" else "outward"
+                record[sid]["ters_baglandi"] = True
+                stop = (f"Bağlantı ters yönde kuruldu ({note}). jira-ayar.json'da baglanti.test_karti "
+                        f"değerini '{other}' yapın ve {key} bağlantısını Jira'da düzeltin.")
+                results.append({"id": sid, "durum": "baglanamadi", "key": key, "url": url, "mesaj": stop})
+            else:
+                record[sid]["baglandi"] = True
+                results.append({"id": sid, "durum": "acildi", "key": key, "url": url})
         except JiraHatasi as exc:
             results.append({"id": sid, "durum": "baglanamadi", "key": key, "url": url,
                             "mesaj": f"Kart açıldı ama {source_key} kartına bağlanamadı: {exc}"})
@@ -333,11 +380,18 @@ def discover(jira, project, issue_type):
     suggestion["kimlik"] = "cloud" if info.get("deploymentType") == "Cloud" else "pat"
     link_types = jira.request("GET", "/rest/api/2/issueLinkType").get("issueLinkTypes", [])
     lines.append("Bağlantı türleri: " + "; ".join(f"{t['name']} ({t['outward']} / {t['inward']})" for t in link_types))
-    tests = next((t for t in link_types if t["outward"].lower() in ("tests", "test eder")), None)
+    tests = next((t for t in link_types if t["outward"].strip().lower() in TESTS_OUTWARD), None)
+    if not tests:  # çıkış açıklaması farklı yazılmışsa iç açıklamasından veya adından tanı
+        tests = next((t for t in link_types if t["inward"].strip().lower() in TESTS_INWARD
+                      or t["name"].strip().lower() in ("test", "tests")), None)
     relates = next((t for t in link_types if t["name"].lower() == "relates"), None)
     chosen = tests or relates or (link_types[0] if link_types else None)
     if chosen:
-        suggestion["baglanti"] = {"tur": chosen["name"], "test_karti": "outward"}
+        side = "inward" if tests and tests["outward"].strip().lower() in TESTS_INWARD else "outward"
+        suggestion["baglanti"] = {"tur": chosen["name"], "test_karti": side}
+    if not tests:
+        lines.append(f"[UYARI] 'tests / is tested by' bağlantı türü bulunamadı; '{chosen['name'] if chosen else '—'}' "
+                     "önerildi. Test kartları bu türle bağlanır; Jira yöneticisinden 'tests' türünü isteyin.")
     try:
         types = jira.request("GET", f"/rest/api/2/issue/createmeta/{urllib.parse.quote(project)}/issuetypes")
         types = types.get("values", types.get("issueTypes", []))

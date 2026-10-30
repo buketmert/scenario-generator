@@ -38,6 +38,8 @@ TYPE_MAP = {
     "bug": "bug", "hata": "bug", "defect": "bug",
     "sub-task": "sub_task", "subtask": "sub_task", "alt görev": "sub_task", "alt gorev": "sub_task",
     "epic": "epic",
+    "cross-functional": "cross_functional", "cross functional": "cross_functional",
+    "crossfunctional": "cross_functional", "çapraz fonksiyonel": "cross_functional",
 }
 AC_NAMES = ("acceptance criteria", "kabul kriter")
 SKIPPED_CUSTOM_FIELDS = {"rank"}  # sıralama anahtarı; test esası değil

@@ -340,14 +340,21 @@ değişen senaryolar varsayılana döner; script bunları uyarı olarak yazar.
    | `kimlik` | `pat` (Server / Data Center) veya `cloud` |
    | `proje` | Kartların açılacağı proje; `null` ise kaynak kartın projesi |
    | `kart_turu` | Kart türünün Jira'daki adı (`Test Senaryosu`) |
-   | `baglanti.tur` | Kaynak karta bağlantı türünün adı (`Relates`, `Test` …) |
-   | `baglanti.test_karti` | `outward`: "Test Senaryosu kartı `<çıkış açıklaması>` kaynak kart" (ör. "tests"); `inward`: tersi |
+   | `baglanti.tur` | Kaynak karta bağlantı türünün adı. Hedef, çıkış açıklaması "tests" olan türdür (kaynak kartta "is tested by" görünür); keşif bu türü adından veya açıklamalarından bulur, bulamazsa uyarıp `Relates` önerir |
+   | `baglanti.test_karti` | `outward`: "Test Senaryosu kartı `<çıkış açıklaması>` kaynak kart" (ör. "tests"); `inward`: tersi. Yön denetimi bağlantının ters kurulduğunu bildirirse bu değer çevrilir |
    | `etiketler` | Akış türü, pozitif/negatif, kaynak kart ve senaryo kimliği etiket olarak yazılsın mı |
    | `oncelik` | Risk seviyesi Jira önceliğine yazılsın mı (`oncelik_adlari` ile) |
    | `alanlar` | Kartta özel alanlar varsa kimlikleri: `on_kosullar`, `test_adimlari`, `beklenen_sonuc`, `test_verisi` (`customfield_…`); `null` olanlar yalnızca açıklamaya yazılır |
 
 4. **Deneme:** `jira_create.py … --deneme` kart açmadan gönderilecek alanları
    gösterir.
+
+**Bağlantı yönü denetlenir.** Jira API'sinde bağlantının hangi uca yazıldığı
+kolayca ters çıkar. Bu yüzden bir çalıştırmada ilk bağlantı kurulduktan sonra
+kaynak kartın bağlantıları okunur: kaynak kartta "is tested by <test kartı>"
+yerine "tests <test kartı>" görünüyorsa satır `baglanamadi` olur,
+kalan senaryolar açılmaz ve `baglanti.test_karti` değerinin çevrilmesi
+istenir. Ters kurulan bağlantı Jira'da elle düzeltilir.
 
 Kartın içeriği: özet `[TS-…] <başlık>`; açıklamada amaç, akış, öncelik, teknik,
 izlenebilirlik, test ortamı, ön koşullar, test adımları, beklenen sonuç, test

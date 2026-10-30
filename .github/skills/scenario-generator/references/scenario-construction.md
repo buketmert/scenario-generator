@@ -58,6 +58,16 @@ yorumlar.
    ne olur?) akış için senaryo uydurulmaz: soru yazılır. Sonuç çelişkiliyse
    akış kaydedilir ve senaryosu taslak (`needs_clarification`) olur.
 
+**Kart türüne göre akış.** Adımlar aynıdır; aktörün, giriş noktasının ve
+sonucun ne olduğu kart türüne göre değişir (ek kontroller:
+`card-analysis-rules.md` §8):
+
+| Kart türü | Aktör ve giriş noktası | Akışın sonucu | Dikkat |
+|---|---|---|---|
+| `story` | Kullanıcı rolü, kanal, ekran yolu | Kullanıcının gördüğü sonuç | Farklı yetki sonucu doğuran her rol ayrı akıştır |
+| `task`, `sub_task` | Tetikleyici: kullanıcı işlemi, servis çağrısı, zamanlanmış iş, gelen mesaj | Gözlemlenebilir çıktı: ekran, kayıt, mesaj, log, sonraki sistem | Kart teknik ayrıntı verse de adımlar test uzmanının gözlemleyebileceği düzeyde yazılır |
+| `cross_functional` | Akışı başlatan sistemdeki aktör | Son sistemde oluşan durum | Sistemin işi devrettiği her nokta ara doğrulamadır (`Ve` adımı: karşı sistemde kayıt oluşur); bir sistemin hata verdiği her durum, kart sonucunu tanımlıyorsa ayrı hata akışıdır. Senaryo etiketlerine etkilenen sistemler eklenir |
+
 UC öğesinin `description` alanı akışı başlangıçtan sonuca tek satırda özetler:
 `Giriş → … → Sonuç`. Ana akıştan türeyen akışlar "Ana akış; <farkı> → <sonucu>"
 biçiminde yazılır.

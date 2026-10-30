@@ -35,7 +35,7 @@
       "required": ["jira_key", "issue_type", "summary"],
       "properties": {
         "jira_key": { "type": "string", "pattern": "^[A-Z][A-Z0-9]+-[0-9]+$" },
-        "issue_type": { "enum": ["story", "task", "bug", "sub_task", "epic", "other"] },
+        "issue_type": { "enum": ["story", "task", "bug", "sub_task", "epic", "cross_functional", "other"] },
         "summary": { "type": "string", "minLength": 1 },
         "url": { "type": "string", "format": "uri" },
         "components": { "type": "array", "items": { "type": "string" } },

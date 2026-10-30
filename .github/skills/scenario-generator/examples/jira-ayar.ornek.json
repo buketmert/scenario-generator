@@ -3,7 +3,7 @@
   "kimlik": "pat",
   "proje": null,
   "kart_turu": "Test Senaryosu",
-  "baglanti": {"tur": "Relates", "test_karti": "outward"},
+  "baglanti": {"tur": "Tests", "test_karti": "outward"},
   "etiketler": true,
   "oncelik": false,
   "oncelik_adlari": {"critical": "Highest", "high": "High", "medium": "Medium", "low": "Low"},

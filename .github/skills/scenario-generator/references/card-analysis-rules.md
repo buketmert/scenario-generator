@@ -22,7 +22,7 @@ tanımlar. `SKILL.md` iş akışının 1. ve 2. adımlarında kullanılır.
 | Alan | Ne aranır | Senaryoya katkısı |
 |---|---|---|
 | Summary | Kapsamın kısa adı | `feature.name` (Özellik adı) |
-| Issue type | story, task, bug, sub-task | Akış seçimi: bug → doğrulama + regresyon |
+| Issue type | story, task, cross-functional, bug, sub-task | Akış seçimi ve ek kontroller (§8): bug → doğrulama + regresyon; task → tetikleyici → işlem → çıktı; cross-functional → sistemler arası akış |
 | Description | Kullanıcı hikâyesi, iş kuralları, akış adımları, tablolar, ekran yolu, kapsam dışı notları, eklere ve dış dokümanlara yapılan atıflar | İş kuralları (`BR`), ön koşullar, navigasyon |
 | Acceptance criteria | Ayrı alan veya açıklama içindeki kriter listesi | Kabul kriterleri (`AC`) |
 | Environment | Ortam (TEST, PREPROD), kanal (web, mobil, şube), sürüm/build, cihaz, işletim sistemi, tarayıcı, test kullanıcı tipi | `test_environment`; ortama özgü ön koşullar |
@@ -146,15 +146,52 @@ Tutarlılık kuralları (script denetler):
   bağlantı veya bağlı kart varsa R10 `pass` olamaz.
 - `test_environment.details` boşsa R9 `pass` olamaz.
 
-## 8. Bug kartları
+## 8. Kart türüne göre ek kontroller
 
-Bug kartlarında şu bilgiler ayrıca aranır; eksikse ilgili kontrol düşer:
+Story kartları §7'deki tabloyla değerlendirilir. Diğer türlerde şu bilgiler
+ayrıca aranır; eksikse ilgili kontrol düşer.
+
+### 8.1 Bug kartları
 
 - Yeniden üretme adımları (açıklama, video, log) → yoksa R2 `fail`
 - Gerçekleşen ve beklenen davranış → yoksa R3 `fail`
 - Ortam ve etkilenen sürüm → yoksa R9 `fail`
 - Hata mesajı veya kodu (ekran görüntüsü, log) → doğrulama testinin beklenen
   sonucunda kullanılır
+
+### 8.2 Task kartları (`task`, `sub_task`)
+
+Task kartları çoğunlukla teknik bir işi (servis, batch, entegrasyon,
+konfigürasyon, veri taşıma) tanımlar ve ayrı kabul kriteri alanı taşımaz.
+
+- Açıklamadaki doğrulanabilir tamamlanma ifadeleri (servisin döndürdüğü
+  sonuç, alan kuralı, beklenen çıktı) gereksinim olarak `BR` kaydedilir,
+  kaynağı `description`. Gereksinim yalnızca açıklamadan geliyorsa R2 en fazla
+  `partial`; açıklamada doğrulanabilir hiçbir ifade yoksa R2 `fail`.
+- Tetikleyici (kim ya da ne başlatıyor), işlem ve gözlemlenebilir çıktı
+  (ekran, kayıt, mesaj, log, sonraki sistem) aranır. Çıktı belli değilse R3
+  `partial`; hiçbir gözlemlenebilir çıktı yoksa R3 `fail`.
+- Üst story veya bağlı story'nin XML'i verildiyse, task'in hangi kabul
+  kriterine hizmet ettiği izlenebilirlik için kaydedilir; story'nin kriterleri
+  task'in test esasına dönüştürülmez.
+- Davranışı değiştirmeyen işlerde (refactor, altyapı veya kütüphane
+  güncellemesi) test edilecek yeni gereksinim yoktur: R2 `fail`, kart
+  `not_ready`. Soru olarak etkilenen akışlar sorulur; yanıt gelince bu akışlar
+  regresyon senaryosu olarak yazılır.
+
+### 8.3 Cross-functional kartlar (`cross_functional`)
+
+Birden fazla ekibi, sistemi veya kanalı etkileyen kartlardır. Test esası
+kartın kendisi ile birlikte bağlı kartlar ve alt görevlerdir.
+
+- Etkilenen her sistem ve ekip, aralarındaki arayüz (servis, mesaj, dosya,
+  ekran) ve sistemlerin hangi sırayla iş devrettiği aranır. Sistemlerden biri
+  ya da devir sırası belli değilse R8 `partial`; hangi sistemlerin etkilendiği
+  hiç anlaşılmıyorsa R8 `fail`.
+- Bağlı kartların XML'i verilmediyse R10 `pass` olamaz (§3, madde 4). Kurallar
+  yalnızca bağlı kartta duruyorsa ("ayrıntılar CRM kartında") R10 `fail`.
+- Bir sistem hata verdiğinde diğerlerinin davranışı (geri alma, yeniden
+  deneme, bildirim) R5 kapsamındadır; kart tanımlamıyorsa soru yazılır.
 
 ## 9. Girdi: Jira XML dışa aktarımı
 
@@ -178,7 +215,7 @@ Her kart, `<rss><channel>` altındaki bir `<item>` öğesidir. Birden fazla
 | `<key>` | `source.jira_key` | |
 | `<summary>` | `summary` | `<title>` içindeki `[KEY]` ön eki kullanılmaz |
 | `<link>` | `source.url` | Yalnızca kaydedilir, açılmaz |
-| `<type>` | `issue_type` | Story / Hikâye → `story`, Task / Görev → `task`, Bug / Hata → `bug`, Sub-task / Alt Görev → `sub_task`, Epic → `epic`, Cross-functional ve diğerleri → `other` (akışı story gibidir; yalnızca `bug` farklı akış alır) |
+| `<type>` | `issue_type` | Story / Hikâye → `story`, Task / Görev → `task`, Bug / Hata → `bug`, Sub-task / Alt Görev → `sub_task`, Epic → `epic`, Cross-functional → `cross_functional`, diğerleri → `other` (akışı story gibidir). Türe göre ek kontroller §8'de |
 | `<description>` | `description` | HTML olarak kaçışlıdır; bkz. §9.2 |
 | `<environment>` | `environment` | Boşsa `empty` |
 | `<priority>` | `priority`, `source.jira_priority` | |

@@ -78,6 +78,12 @@ Ayrıntı: `references/scenario-construction.md`, `test-design-rules.md`,
   bağlantılar. R7, R9, R10'u yazmazsan script hesaplar; `pass` için bulgu
   yazma. R2, R3, R7 veya R10 `fail` ise kart `not_ready`: senaryo yazma,
   soruları ver.
+- **Kart türü** (`card-analysis-rules.md` §8): `task` → akış tetikleyiciden
+  (işlem, servis, zamanlanmış iş) gözlemlenebilir çıktıya; kabul kriteri
+  yoksa açıklamadaki doğrulanabilir ifadeler `BR` olur, R2 en fazla
+  `partial`; davranışı değiştirmeyen iş `not_ready`. `cross_functional` →
+  akış sistemler arasıdır, her devir noktası `Ve` ile ara doğrulama; bağlı
+  kartların XML'i yoksa R10 `pass` olamaz; etkilenen sistemler etiket olur.
 - **Çelişki:** daha yeni tarihli ürün sahibi kararı > kabul kriteri > açıklama.
   Geliştirici yorumu iş kuralını tek başına değiştirmez; ek ile metin
   çelişirse seçim yapma, soru yaz.
