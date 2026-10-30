@@ -1,0 +1,349 @@
+{
+  "source": {
+    "jira_key": "KBTYTKM3-1832",
+    "issue_type": "other",
+    "summary": "Düzenli Ödeme Talimatı",
+    "url": "https://jira.apps.nonfin-vip.zke.zb/browse/KBTYTKM3-1832",
+    "jira_priority": "Low"
+  },
+  "card_inventory": {
+    "fields": [
+      {
+        "field": "summary",
+        "status": "used"
+      },
+      {
+        "field": "issue_type",
+        "status": "used",
+        "note": "Cross-functional"
+      },
+      {
+        "field": "description",
+        "status": "used"
+      },
+      {
+        "field": "acceptance_criteria",
+        "status": "used",
+        "note": "Özel alan: Kabul Kriterleri"
+      },
+      {
+        "field": "environment",
+        "status": "empty"
+      },
+      {
+        "field": "priority",
+        "status": "used"
+      },
+      {
+        "field": "labels",
+        "status": "empty"
+      },
+      {
+        "field": "components",
+        "status": "empty"
+      },
+      {
+        "field": "affects_versions",
+        "status": "empty"
+      },
+      {
+        "field": "fix_versions",
+        "status": "empty"
+      },
+      {
+        "field": "reporter",
+        "status": "used"
+      },
+      {
+        "field": "assignee",
+        "status": "used"
+      },
+      {
+        "field": "subtasks",
+        "status": "empty"
+      },
+      {
+        "field": "custom_fields",
+        "status": "used",
+        "note": "Authentication Mehtod, BGR - Etkilenen iş doldur, Client Environment, Client Status, Client Type, Create User, Dönem, Erişim Noktası, Güvenlik Testine ihtiyaç var mı?, Interval Time, Kanal Testi, Kullanıcı Profili, Ldap Client Environment, Ldap Target Apigateway, Master Key, Meeting Type, PCF Space Name, Performans/Yük Testine ihtiyaç var mı?, Pilot Testine ihtiyaç var mı?, QA Test Required, S1-Soru-1, Servis Yöneticiliği, Skip Code Review, Skip Code Review, Source ApiGateway, Target ApiGateway, Test Senaryosu Tipi, UX Testine ihtiyaç var mı?"
+      }
+    ],
+    "attachments": [],
+    "comments": [],
+    "linked_issues": [],
+    "external_links": []
+  },
+  "test_basis_candidates": [
+    {
+      "id": "AC-01",
+      "kind": "acceptance_criterion",
+      "text": "FONKSİYONEL GEREKSİNİMLER",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-02",
+      "kind": "acceptance_criterion",
+      "text": "Ödeme Tipleri ile ilgili gereksinimler aşağıda madde madde açıklanmıştır:",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-03",
+      "kind": "acceptance_criterion",
+      "text": "1) IBAN",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-04",
+      "kind": "acceptance_criterion",
+      "text": "Ziraat Katılım IBAN’ı haricindeki IBANlar girilebilir. Ziraat Katılım IBAN’I girildiğinde şu şekilde uyarı verilecektir:",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-05",
+      "kind": "acceptance_criterion",
+      "text": "IBAN Ziraat Katılım Bankasına ait olduğundan işlem \"BANKAMIZ HESABINA\" sekmesi ile yapılmalıdır.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-06",
+      "kind": "acceptance_criterion",
+      "text": "IBAN bilgisi girildiğinde aşağıdaki şekilde Ad/Soyad Banka ve TCKN/VKN bilgileri otomatik getirilir, pasif alandır. Alıcı Ad\\Soyad maskelenmiş olarak gelecektir.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-07",
+      "kind": "acceptance_criterion",
+      "text": "Alıcı Ad, Soyad bilgisi zorunlu alandır. Bilgi girişi yapılmadığında aşağıdaki gibi uyarı verilcektir. IBAN sekmesinden yapılan işlemlerde IBAN ve Alıcı Ad/Soyad alanları zorunludur.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-08",
+      "kind": "acceptance_criterion",
+      "text": "Ad soyad alanına hatalı giriş yapıldığında ekranda uyarı verilmeyecektir. Ancak EFT işlemi de gerçekleşmeyecektir.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-09",
+      "kind": "acceptance_criterion",
+      "text": "2) Başka Banka Hesabına",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-10",
+      "kind": "acceptance_criterion",
+      "text": "Düzenli ödeme Tipi: Başka Banka Hesabına seçilince İşlem türü Hesaba EFT ve İsme EFT seçenekleri çıkacaktır. Burada tüm alanları doldurmak zorunludur.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-11",
+      "kind": "acceptance_criterion",
+      "text": "BAŞKA BANKA HESABINA sekmesinden yapılan işlemlerde Alıcı Ad/Soyad, Alıcı Banka, Alıcı Şube alanları zorunludur.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-12",
+      "kind": "acceptance_criterion",
+      "text": "BAŞKA BANKA HESABINA sekmesinden yapılan Hesaba EFT işlemlerinde Alıcı Hesap No alanı zorunludur.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-13",
+      "kind": "acceptance_criterion",
+      "text": "İşlem Tipi: Hesaba EFT",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-14",
+      "kind": "acceptance_criterion",
+      "text": "Alıcı Banka Kodu Alıcı hesabın banka kodu girilir. Zorunlu alandır.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-15",
+      "kind": "acceptance_criterion",
+      "text": "Alıcı Şube Kodu Alıcı hesabın şube kodu girilir. Zorunlu alandır.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-16",
+      "kind": "acceptance_criterion",
+      "text": "Alıcının Hesabı Alıcının Hesabı girilir. Zorunlu alandır.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-17",
+      "kind": "acceptance_criterion",
+      "text": "Ad – Soyad / Unvan Alacaklı hesap sahibinin ad-soyad bilgileri girilir. Zorunlu alandır.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-18",
+      "kind": "acceptance_criterion",
+      "text": "İşlem Tipi: İsme EFT",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-19",
+      "kind": "acceptance_criterion",
+      "text": "Alıcı Banka Kodu Alıcı hesabın banka kodu girilir",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-20",
+      "kind": "acceptance_criterion",
+      "text": "Alıcı Şube Kodu Alıcı hesabın şube kodu girilir",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-21",
+      "kind": "acceptance_criterion",
+      "text": "Alıcı Adı – Soyadı / Unvanı Alacaklı hesap sahibinin ad-soyad bilgileri girilir. Zorunlu alandır.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-22",
+      "kind": "acceptance_criterion",
+      "text": "Anne Adı Alıcının anne adı girilir.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-23",
+      "kind": "acceptance_criterion",
+      "text": "Baba Adı Alacaklının baba adı girilir, zorunlu alandır.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-24",
+      "kind": "acceptance_criterion",
+      "text": "Doğum Tarihi Alacaklının doğum tarihi girilir.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-25",
+      "kind": "acceptance_criterion",
+      "text": "Alıcının Adresi Alacaklının adres bilgisi girilir. Alıcının adresi veya telefon numaralarından en az bir tanesi girilmelidir.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-26",
+      "kind": "acceptance_criterion",
+      "text": "Ev Tel. Alacaklının ev telefonu bilgisi girilir. Alıcının adresi veya telefon numaralarından en az bir tanesi girilmelidir.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    },
+    {
+      "id": "AC-27",
+      "kind": "acceptance_criterion",
+      "text": "Cep Tel. Alacaklının cep telefonu bilgisi girilir. Alıcının adresi veya telefon numaralarından en az bir tanesi girilmelidir.",
+      "source": {
+        "field": "acceptance_criteria"
+      },
+      "format": "rule",
+      "testability": "testable"
+    }
+  ],
+  "comment_texts": {}
+}
