@@ -125,6 +125,36 @@ def child_text(el, tag):
     return (found.text or "").strip() if found is not None else None
 
 
+def inner_html(el):
+    """el'in iç içeriğini bir HTML dizesi olarak yeniden kurar.
+
+    Jira'nın bazı kurulumları description/comment/customfieldvalue içeriğini
+    HTML varlıklarıyla kaçışlamak (&lt;p&gt;) yerine gerçek XML alt öğeleri
+    (<p>, <br/>, <ul>…) olarak yazar; bu durumda ElementText.text yalnızca ilk
+    alt öğeden önceki metni verir ve geri kalanı sessizce kaybolur. Bu
+    fonksiyon alt öğeleri etiketleriyle birlikte dizeye geri yazarak
+    html_to_text'in (HTMLParser tabanlı) yapıyı doğru okumasını sağlar.
+    """
+    def serialize(e):
+        attrs = "".join(f' {k}="{v}"' for k, v in e.attrib.items())
+        s = f"<{e.tag}{attrs}>" + (e.text or "")
+        for c in e:
+            s += serialize(c) + (c.tail or "")
+        return s + f"</{e.tag}>"
+
+    if el is None:
+        return ""
+    out = el.text or ""
+    for child in el:
+        out += serialize(child) + (child.tail or "")
+    return out
+
+
+def child_inner_html(el, tag):
+    found = el.find(tag)
+    return inner_html(found) if found is not None else None
+
+
 def jira_date(value):
     try:
         return parsedate_to_datetime(value).date().isoformat()
@@ -147,7 +177,7 @@ def parse_item(item):
     key = child_text(item, "key")
     summary = child_text(item, "summary") or ""
     type_name = child_text(item, "type") or ""
-    description_raw = child_text(item, "description")
+    description_raw = child_inner_html(item, "description")
     environment = child_text(item, "environment")
     priority = child_text(item, "priority")
     labels = [(l.text or "").strip() for l in item.findall("labels/label") if (l.text or "").strip()]
@@ -160,7 +190,7 @@ def parse_item(item):
     # yorumlar: eskiden yeniye, C-01'den başlayarak
     raw_comments = []
     for c in item.findall("comments/comment"):
-        text, c_links = html_to_text(c.text)
+        text, c_links = html_to_text(inner_html(c))
         links += c_links
         created = c.get("created") or ""
         try:
@@ -177,7 +207,7 @@ def parse_item(item):
     linked = []
     for cf in item.findall("customfields/customfield"):
         name = child_text(cf, "customfieldname") or cf.get("id") or "adsız alan"
-        values = [v.text or "" for v in cf.findall("customfieldvalues/customfieldvalue")]
+        values = [inner_html(v) for v in cf.findall("customfieldvalues/customfieldvalue")]
         if name.lower() in SKIPPED_CUSTOM_FIELDS:
             continue
         if name.lower() == "epic link":
