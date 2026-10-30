@@ -300,10 +300,8 @@ def render_markdown(key, info, basis):
     out = [
         f"# {key} — {info['summary']}",
         "",
-        "> scripts/parse_jira_xml.py ile XML'den üretildi. Kaynak bilgileri, envanter, yorum kimlikleri ve",
-        "> kabul kriterleri `" + key + "-kart.json` içinde hazır; JSON'a `source` ve `card_inventory` yazma,",
-        "> kabul kriterlerini yeniden yazma (AC kimlikleriyle an). Yalnızca yorumların rolünü, özetini ve",
-        "> bağladığı öğeleri yaz.",
+        "> scripts/parse_jira_xml.py ile XML'den üretildi. Kart bilgileri `" + key + "-kart.json` içinde hazır;",
+        "> JSON'a yalnızca senaryoları ve soruları yaz (aşağıdaki yazım kılavuzu).",
         "",
         f"- **Tür:** {info['type_name'] or '—'} · **Öncelik:** {info['priority'] or '—'} · **Durum:** {info['status'] or '—'}",
         f"- **Bileşenler:** {j(info['components'])} · **Etiketler:** {j(info['labels'])}",

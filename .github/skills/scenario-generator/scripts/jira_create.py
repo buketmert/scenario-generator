@@ -197,14 +197,20 @@ def description(doc, sc, questions, assumptions, items):
     t = sc["traceability"]
     trace = " | ".join(", ".join(ids) for ids in (t["basis_ids"], t["test_condition_ids"], t["coverage_item_ids"]) if ids)
     pre, actions, expected, data = card_fields(doc, sc)
-    lines = [f"*Amaç:* {sc['objective']}"]
+    lean = doc.get("_mod") == "yalin"  # yalın biçim: izlenebilirlik ve teknik satırı yok
+    lines = [] if lean and sc["objective"] == sc["title"] else [f"*Amaç:* {sc['objective']}"]
     for flow in rg.flow_of(sc, items):
-        lines.append(f"*Akış ({rg.tr(flow['flow_type'])}):* {flow['description']}")
+        lines.append(f"*Akış:* {rg.tr(flow['flow_type'])}" if lean
+                     else f"*Akış ({rg.tr(flow['flow_type'])}):* {flow['description']}")
     lines += [
         f"*Kaynak kart:* {doc['source']['jira_key']}",
+        f"*Öncelik:* {rg.tr(sc['priority'])} | *Tür:* {rg.tr(sc['scenario_type'])}" if lean else
         f"*Öncelik (risk):* {rg.tr(sc['priority'])} | *Tür:* {rg.tr(sc['scenario_type'])}"
         f" | *Teknik:* {', '.join(TECHNIQUES[x] for x in sc['techniques'])}",
-        f"*İzlenebilirlik:* {trace}",
+    ]
+    if not lean:
+        lines.append(f"*İzlenebilirlik:* {trace}")
+    lines += [
         f"*Test ortamı:* {doc['test_environment']['summary']}",
         "", "*Ön koşullar:*", pre or "-", "", "*Test adımları:*", actions or "-",
         "", "*Beklenen sonuç:*", expected or "-",

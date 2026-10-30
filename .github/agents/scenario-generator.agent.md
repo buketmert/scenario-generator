@@ -27,7 +27,7 @@ sorarsın.
 
 Yerel modelde her araç çağrısı bağlamın tamamını yeniden işler; bu yüzden plan
 anlatma, onay isteme, gereksiz dosya okuma. Yalnızca şu durumlarda durursun:
-XML yoksa (iste), 2. adımdaki sorularda (yanıtı bekle) ve kart `not_ready` ise.
+XML yoksa (iste), 2. adımdaki sorularda (yanıtı bekle) ve kart yetersizse.
 
 1. **Ayrıştır ve oku — tek çağrı.** XML yapıştırıldıysa önce
    `test-scenarios/girdi/_girdi.xml` dosyasına yaz.
@@ -36,7 +36,7 @@ XML yoksa (iste), 2. adımdaki sorularda (yanıtı bekle) ve kart `not_ready` is
    python .github/skills/scenario-generator/scripts/parse_jira_xml.py <xml-dosyası> --out-dir test-scenarios --yazdir
    ```
 
-   Çıktıda kart metni (`AC-NN`, `C-NN` kimlikleriyle) ve JSON yazım kılavuzu
+   Çıktıda kart metni ve JSON yazım kılavuzu
    vardır; ikisini kullan. Ham XML'i, şemayı, örnek JSON'u okuma. Windows'ta
    `python` yoksa `py` dene; Python hiç yoksa `Senaryo XML Analisti`ni bir kez
    çağır. SKILL.md ve `references/` yalnızca bug kartı, karar tablosu, durum
@@ -50,7 +50,8 @@ XML yoksa (iste), 2. adımdaki sorularda (yanıtı bekle) ve kart `not_ready` is
    etkilemeyen sorular sorulmaz, rapora yazılır.
 
 3. **JSON'u bir kerede yaz:** `test-scenarios/<KEY>/<KEY>.json`, kılavuzdaki
-   yalın biçimde. Script'in doldurduğu alanları yazma.
+   yalın biçimde: yalnızca senaryolar ve sorular. Kimlik, durum, öncelik
+   hesabı ve kart bilgisini script doldurur.
 
 4. **Üret ve seçim ekranını aç — tek çağrı:**
 
@@ -69,41 +70,32 @@ XML yoksa (iste), 2. adımdaki sorularda (yanıtı bekle) ve kart `not_ready` is
 
 ## Senaryo nasıl kurulur — özet
 
-Ayrıntı: `references/scenario-construction.md`, `test-design-rules.md`,
-`card-analysis-rules.md`.
+İzlenebilirlik yazılmaz (AC/COND/UC kimliği, risk puanı, R1–R10 kontrolü
+yok); emek senaryoların net ve düşünülmüş olmasına gider. Ayrıntı:
+`references/scenario-construction.md`, `test-design-rules.md`.
 
-- **Yeterlilik (R1–R10):** R1 amaç, R2 test edilecek gereksinim, R3 test
-  edilebilirlik, R4 veri kuralları, R5 hata davranışı, R6 roller ve ön
-  koşullar, R7 tutarlılık, R8 kapsam sınırı, R9 test ortamı, R10 ekler ve
-  bağlantılar. R7, R9, R10'u yazmazsan script hesaplar; `pass` için bulgu
-  yazma. R2, R3, R7 veya R10 `fail` ise kart `not_ready`: senaryo yazma,
+- **Yeterlilik:** test edilecek davranış kartta yoksa ya da sonucu
+  doğrulanamıyorsa `yetersiz` alanına gerekçeyi yaz, `senaryolar: []`,
   soruları ver.
-- **Kart türü** (`card-analysis-rules.md` §8): `task` → akış tetikleyiciden
-  (işlem, servis, zamanlanmış iş) gözlemlenebilir çıktıya; kabul kriteri
-  yoksa açıklamadaki doğrulanabilir ifadeler `BR` olur, R2 en fazla
-  `partial`; davranışı değiştirmeyen iş `not_ready`. `cross_functional` →
-  akış sistemler arasıdır, her devir noktası `Ve` ile ara doğrulama; bağlı
-  kartların XML'i yoksa R10 `pass` olamaz; etkilenen sistemler etiket olur.
+- **Akışlar:** bir ana akış; kartta tanımlı her alternatif yol; kartta
+  tanımlı her red/uyarı için bir hata akışı. Aynı mesaj ve sonuçla biten
+  sebepler aynı senaryonun `ornekler` satırlarıdır. Sonucu kartta yazmayan
+  akış için senaryo değil soru.
+- **Kart türü:** `task` → tetikleyiciden (işlem, servis, zamanlanmış iş)
+  gözlemlenebilir çıktıya. `cross_functional` → her sistem devrinde `Ve` ile
+  ara doğrulama.
 - **Çelişki:** daha yeni tarihli ürün sahibi kararı > kabul kriteri > açıklama.
-  Geliştirici yorumu iş kuralını tek başına değiştirmez; ek ile metin
-  çelişirse seçim yapma, soru yaz.
-- **Test esası:** kabul kriteri alanındaki `AC`'ler hazırdır, metnini yeniden
-  yazma. `BR`, `UI`, `CN` metni kaynaktaki gibi, kaynağıyla yazılır.
-- **Koşul ve risk:** her `COND` için olasılık × etki (1–3); Jira önceliği
-  etkiye girdi.
-- **Akışlar (`UC`):** bir ana akış (`UC-ANA`), kartta tanımlı alternatif
-  yollar (`UC-ALT-*`) ve kartta tanımlı her red/uyarı için bir hata akışı
-  (`UC-HATA-*`). Aynı mesaj ve sonuçla biten sebepler aynı akıştır. Sonucu
-  kartta yazmayan akış için senaryo değil soru.
-- **Teknikler veri satırı üretir:** denklik sınıfı ve sınır değer (yüksek ve
-  kritik riskte sınırın iki komşusu), karar tablosu, durum geçişi, hata
-  tahmini. Geçerli değerler ana akışın, geçersizler tetikledikleri hata
-  akışının satırıdır; bir satırda tek geçersiz değer.
-- **Senaryo:** akış başına bir. Geçmiş + adımlar giriş noktasından başlar;
-  `Diyelim ki` ön koşul, `Eğer ki` / `Ve` her kullanıcı eylemi (tek eylem tek
-  adım), `O zaman` sonuç; hata akışında mesaj ve `Fakat işlem başlatılmaz`.
-  Ekran, alan ve buton adları ile tırnak içindeki mesajlar karttaki gibi.
-  Kalıcı değişiklik bırakan akışa `postconditions`; ana akış `@smoke`.
+  Geliştirici yorumu iş kuralını tek başına değiştirmez; çözülemiyorsa soru.
+- **Teknikler veri satırı üretir:** denklik sınıfı, sınır değer (kritik
+  sınırda iki komşu), karar tablosu, durum geçişi, hata tahmini. Geçerli
+  değerler ana akışın, geçersizler tetikledikleri hata akışının satırıdır;
+  bir satırda tek geçersiz değer.
+- **Senaryo:** `gecmis` + adımlar giriş noktasından başlar; `Diyelim ki` ön
+  koşul, `Eğer ki` / `Ve` her kullanıcı eylemi (tek eylem tek adım),
+  `O zaman` sonuç; hata akışında mesaj ve `Fakat işlem başlatılmaz`. Ekran,
+  alan ve buton adları ile tırnak içindeki mesajlar karttaki gibi; kartta
+  olmayan değer, mesaj veya kural uydurulmaz. Kalıcı değişiklik bırakan
+  akışa `son_kosul`.
 
 ## Sınırlar
 

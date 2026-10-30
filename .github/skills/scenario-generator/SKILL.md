@@ -43,8 +43,11 @@ sorularda (yanıt beklenir) ve kart `not_ready` ise (rapor ve sorular verilir).
   metin) ve `<KEY>-kart.json` (script'in kullandığı hazır veri) dosyalarına
   çevirir. Jira'ya bağlanılmaz, ekler indirilmez.
 - **LLM'in çıktısı:** yalın bir JSON (`references/output-template.md`):
-  yeterlilik, test esası, çelişkiler, sorular ve yanıtları, akışlar, senaryolar.
-  Kart bilgileri, envanter ve hesaplanabilen alanlar yazılmaz.
+  yalnızca senaryolar (akış, öncelik, adımlar, veri satırları) ve sorular.
+  İzlenebilirlik (test esası, koşul, kapsam öğesi, risk, R1–R10) yazılmaz;
+  `render_gherkin.py` bunları senaryolardan türetir ve çıktılarda göstermez.
+  Aşağıdaki Adım 2–7'deki analiz düşünülür ama JSON'a yalnızca sonucu,
+  yani senaryolar yazılır. Tam şemalı (eski) JSON da hâlâ kabul edilir.
 - **Script'in çıktıları:** `.feature` dosyası (test uzmanı için), kart
   yeterlilik raporu (ürün sahibi / analist için), seçim listesi, seçim ekranı
   ve Jira'da açılan **Test Senaryosu** kartları (kayıt: `<KEY>-jira.json`).

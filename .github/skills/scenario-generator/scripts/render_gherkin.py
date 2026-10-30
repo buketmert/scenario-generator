@@ -138,7 +138,134 @@ def load_card(input_path, explicit=None):
     return None
 
 
-def merge_card(doc, card, rep):
+# ------------------------------------------------------------------ yalın biçim
+
+# Yalın biçimde LLM yalnızca senaryoları ve soruları yazar (output-template.md);
+# izlenebilirlik zinciri (koşul, kapsam öğesi, risk) buradan türetilir.
+LEAN_KEY = "senaryolar"
+STEP_PREFIXES = [("diyelim ki", "given"), ("eğer ki", "when"), ("eger ki", "when"), ("eğer", "when"),
+                 ("o zaman", "then"), ("ve", "and"), ("fakat", "but"), ("ama", "but")]
+FLOWS = {"ana": "main", "alternatif": "alternative", "hata": "exception"}
+PRIORITY_RISK = {"kritik": (3, 3), "yüksek": (3, 2), "yuksek": (3, 2), "orta": (2, 2), "düşük": (1, 1), "dusuk": (1, 1)}
+
+
+def is_lean(doc):
+    return isinstance(doc, dict) and LEAN_KEY in doc
+
+
+def parse_step(line, where, rep):
+    """'Eğer ki Gönder butonuna basarsam' → {"keyword": "when", "text": "Gönder butonuna basarsam"}"""
+    text = str(line).strip()
+    low = text.lower()
+    for prefix, keyword in STEP_PREFIXES:
+        if low.startswith(prefix + " "):
+            return {"keyword": keyword, "text": text[len(prefix):].strip()}
+    rep.error(where, f"adım Diyelim ki / Eğer ki / O zaman / Ve / Fakat ile başlamalı: \"{text[:60]}\"")
+    return {"keyword": "and", "text": text or "?"}
+
+
+def lean_question(q, n, rep):
+    qid = q.get("id") or f"Q-{n:02d}"
+    options = [{"id": chr(ord("a") + i), "text": str(t)} for i, t in enumerate(q.get("secenekler", [])[:6])]
+    out = {"id": qid, "question": q.get("soru", ""), "related_check_ids": ["R3"],
+           "blocking": bool(q.get("bloklayici", True))}
+    if options:
+        out["options"] = options
+    yanit = q.get("yanit")
+    if yanit not in (None, ""):
+        y = str(yanit).strip()
+        if y.lower() in ("bilinmiyor", "unknown"):
+            out["answer"] = {"choice": "unknown"}
+        elif y.lower() in {o["id"] for o in options}:
+            out["answer"] = {"choice": y.lower()}
+        else:
+            out["answer"] = {"choice": "other", "text": y}
+    return out
+
+
+def expand_lean(lean, card, rep):
+    """Yalın JSON'u tam şemaya genişletir; izlenebilirlik alanları senaryolardan türetilir."""
+    key = (card or {}).get("source", {}).get("jira_key") or lean.get("jira_key")
+    if not key:
+        raise OSError("yalın JSON için <KEY>-kart.json gerekli (önce parse_jira_xml.py)")
+    questions = [lean_question(q, n, rep) for n, q in enumerate(lean.get("sorular", []), 1)]
+    basis = list((card or {}).get("test_basis_candidates", []))
+    br_no = max([int(b["id"].split("-")[1]) for b in basis if b["id"].startswith("BR-")] or [0])
+    for q in questions:
+        if is_answered(q):
+            text = q["answer"].get("text") or next((o["text"] for o in q.get("options", [])
+                                                    if o["id"] == q["answer"]["choice"]), "")
+            if text:
+                br_no += 1
+                basis.append({"id": f"BR-{br_no:02d}", "kind": "business_rule", "text": text,
+                              "source": {"field": "clarification", "ref": q["id"]},
+                              "format": "rule", "testability": "testable"})
+    if not basis:
+        basis.append({"id": "BR-01", "kind": "business_rule", "text": card["source"]["summary"],
+                      "source": {"field": "summary"}, "format": "rule", "testability": "testable"})
+    basis_ids = [b["id"] for b in basis]
+
+    reason = lean.get("yetersiz")
+    checks = [{"id": r, "result": "pass", "finding": "—"} for r in ("R1", "R2", "R3", "R4", "R5", "R6", "R8")]
+    if reason:
+        checks[1] = {"id": "R2", "result": "fail", "finding": reason}
+    env = lean.get("ortam")
+    doc = {
+        "schema_version": SCHEMA_VERSION,
+        "test_environment": {"summary": env or "Kartta belirtilmemiş",
+                             "details": [{"aspect": "ortam", "value": env, "source": {"field": "environment"}}] if env else []},
+        "readiness": {"summary": reason or lean.get("ozet") or "Senaryolar karttaki bilgiyle üretildi.",
+                      "checks": checks, "clarification_questions": questions},
+        "test_basis": {"items": basis},
+        "feature": {"name": lean.get("ozellik") or card["source"]["summary"],
+                    "tags": list(lean.get("etiketler", [])),
+                    "background": [parse_step(s, "geçmiş", rep) for s in lean.get("gecmis", [])]},
+        "test_conditions": [], "coverage_items": [], "test_scenarios": [],
+        "out_of_scope": [{"item": o.get("oge", ""), "reason": o.get("neden", "")} for o in lean.get("kapsam_disi", [])],
+    }
+    if not doc["feature"]["background"]:
+        del doc["feature"]["background"]
+    for n, s in enumerate(lean[LEAN_KEY], 1):
+        sid, where = f"TS-{key}-{n:03d}", f"senaryo {n}"
+        flow = FLOWS.get(str(s.get("akis", "")).lower())
+        if not flow:
+            rep.error(where, "akis 'ana', 'alternatif' veya 'hata' olmalı")
+            flow = "alternative"
+        prio = str(s.get("oncelik", "orta")).lower()
+        if prio not in PRIORITY_RISK:
+            rep.error(where, "oncelik 'kritik', 'yüksek', 'orta' veya 'düşük' olmalı")
+            prio = "orta"
+        likelihood, impact = PRIORITY_RISK[prio]
+        title = s.get("baslik") or f"Senaryo {n}"
+        cond, item = f"COND-{n:02d}", f"UC-{n:02d}"
+        doc["test_conditions"].append({"id": cond, "description": title, "basis_ids": basis_ids,
+                                       "techniques": ["use_case_based"],
+                                       "risk": {"likelihood": likelihood, "impact": impact, "rationale": "—"}})
+        doc["coverage_items"].append({"id": item, "technique": "use_case_based", "flow_type": flow,
+                                      "test_condition_ids": [cond], "description": title})
+        examples = s.get("ornekler") or []
+        params = list(dict.fromkeys(k for ex in examples for k in ex if k != "durum"))
+        data_sets = [{"id": f"DS-{i:02d}", "label": str(ex.get("durum") or f"Veri {i}"),
+                      "values": {p: ex.get(p) for p in params}} for i, ex in enumerate(examples, 1)]
+        tur = str(s.get("tur", "")).lower()
+        negative = tur.startswith("neg") or (not tur and flow == "exception")
+        sc = {"id": sid, "title": title, "objective": s.get("amac") or title,
+              "scenario_type": "negative" if negative else "positive",
+              "test_level": "system", "test_type": "functional", "techniques": ["use_case_based"],
+              "traceability": {"basis_ids": basis_ids, "test_condition_ids": [cond], "coverage_item_ids": [item]},
+              "steps": [parse_step(t, where, rep) for t in s.get("adimlar", [])],
+              "test_data": {"parameters": [{"name": p, "description": p} for p in params], "data_sets": data_sets},
+              "tags": list(s.get("etiketler", []))}
+        if flow == "main" and "@smoke" not in sc["tags"]:
+            sc["tags"].append("@smoke")
+        for src, dst in (("sorular", "open_question_ids"), ("son_kosul", "postconditions"), ("notlar", "notes")):
+            if s.get(src):
+                sc[dst] = list(s[src])
+        doc["test_scenarios"].append(sc)
+    return doc
+
+
+def merge_card(doc, card, rep, quiet=False):
     """XML'den gelen hazır veriyi JSON'la birleştirir; JSON'daki aynı kimlikli kayıt önceliklidir."""
     doc["source"] = {**card.get("source", {}), **doc.get("source", {})}
     inv, card_inv = doc.setdefault("card_inventory", {}), card.get("card_inventory", {})
@@ -152,7 +279,8 @@ def merge_card(doc, card, rep):
         if "summary" not in entry:
             text = (texts.get(c["id"]) or "").strip() or "(boş yorum)"
             entry["summary"] = text[:200] + ("…" if len(text) > 200 else "")
-            rep.warn(c["id"], "yorum değerlendirilmedi; rolü 'unknown', özeti yorumun başı olarak yazıldı")
+            if not quiet:
+                rep.warn(c["id"], "yorum değerlendirilmedi; rolü 'unknown', özeti yorumun başı olarak yazıldı")
         entry.setdefault("role", "unknown")
         entry.setdefault("status", "used")
         entry.setdefault("basis_ids", [])
@@ -170,7 +298,7 @@ def merge_card(doc, card, rep):
     doc["test_basis"]["items"] = merged + [b for b in basis if not (isinstance(b, dict) and b.get("id") in merged_ids)]
 
 
-def complete_document(doc, card, rep):
+def complete_document(doc, card, rep, quiet=False):
     """Hesaplanabilen alanları doldurur; LLM bunları yazmak zorunda değildir.
 
     Yazılmış bir değer hesaplanandan farklıysa hesaplanan geçerlidir ve uyarı
@@ -181,7 +309,7 @@ def complete_document(doc, card, rep):
     for key in ("conflicts", "assumptions", "out_of_scope", "test_scenarios", "coverage_items", "test_conditions"):
         doc.setdefault(key, [])
     if card:
-        merge_card(doc, card, rep)
+        merge_card(doc, card, rep, quiet)
     try:
         _complete_derived(doc, rep)
     except (KeyError, TypeError, AttributeError, ValueError):
@@ -314,11 +442,26 @@ def compute_coverage(doc, rep):
                                 "ready": statuses["ready"], "needs_clarification": statuses["needs_clarification"]}}
 
 
+def card_text(input_path):
+    """<KEY>-kart.md: yalın biçimde beklenen mesajlar kartın tüm metninde aranır."""
+    path = Path(input_path).with_name(Path(input_path).stem + "-kart.md")
+    return path.read_text(encoding="utf-8") if path.exists() else ""
+
+
 def prepare(input_path, card_path, schema, rep):
-    """JSON'u okur, karttan ve hesapla tamamlar, doğrular. Okuma hatasında OSError/JSONDecodeError fırlatır."""
-    doc = load_json(input_path)
-    complete_document(doc, load_card(input_path, card_path), rep)
-    check_document(doc, schema, rep)
+    """JSON'u okur, karttan ve hesapla tamamlar, doğrular. Okuma hatasında OSError/JSONDecodeError fırlatır.
+
+    Yalın biçimde (output-template.md) önce tam şemaya genişletilir; dönen belgede
+    doc["_mod"] == "yalin" olur ve çıktılar izlenebilirlik alanlarını göstermez.
+    """
+    doc, card = load_json(input_path), load_card(input_path, card_path)
+    lean = is_lean(doc)
+    if lean:
+        doc = expand_lean(doc, card, rep)
+    complete_document(doc, card, rep, quiet=lean)
+    check_document(doc, schema, rep, extra_text=card_text(input_path) if lean else None)
+    if lean:
+        doc["_mod"] = "yalin"
     return doc
 
 
@@ -476,7 +619,7 @@ def flow_of(sc, items):
             if i in items and items[i]["technique"] == "use_case_based"]
 
 
-def check_scenario(sc, doc, rep, ids, basis_texts):
+def check_scenario(sc, doc, rep, ids, basis_texts, strict_quotes=True):
     sid = sc["id"]
     tr_ = sc["traceability"]
     is_draft = sc["status"] == "needs_clarification"
@@ -540,10 +683,10 @@ def check_scenario(sc, doc, rep, ids, basis_texts):
                 for quoted in QUOTE_RE.findall(substitute(s["text"], values)):
                     if not any(quoted in t for t in basis_texts):
                         msg = f"beklenen metin kartta geçmiyor: \"{quoted}\""
-                        (rep.warn if is_draft else rep.error)(sid, msg)
+                        (rep.error if strict_quotes and not is_draft else rep.warn)(sid, msg)
 
 
-def check_document(doc, schema, rep):
+def check_document(doc, schema, rep, extra_text=None):
     check_schema(doc, schema, rep)
     if rep.errors:
         return  # yapı bozuksa anlamsal kontroller yanıltıcı olur
@@ -566,6 +709,8 @@ def check_document(doc, schema, rep):
     # Beklenen metin karttan ya da kullanıcının seçtiği yanıttan gelebilir.
     basis_texts = [b["text"] for b in doc["test_basis"]["items"]]
     basis_texts += [q["answer"]["text"] for q in questions if is_answered(q) and q["answer"].get("text")]
+    if extra_text is not None:  # yalın biçim: kartın tüm metni; bulunamayan mesaj uyarıdır
+        basis_texts.append(extra_text)
     scenarios = doc["test_scenarios"]
 
     check_inventory_and_basis(doc, rep, ids, inv)
@@ -597,7 +742,7 @@ def check_document(doc, schema, rep):
     if doc["feature"].get("background"):
         check_steps(doc["feature"]["background"], "feature.background", rep, False, is_background=True)
     for sc in scenarios:
-        check_scenario(sc, doc, rep, ids, basis_texts)
+        check_scenario(sc, doc, rep, ids, basis_texts, strict_quotes=extra_text is None)
     # kapsam özeti complete_document'ta hesaplandı; yalnızca LLM'in yazdığı soru bağı denetlenir
     for u in doc["coverage_summary"]["uncovered_items"]:
         if "question_id" in u and u["question_id"] not in ids["questions"]:
@@ -617,11 +762,12 @@ def render_steps(steps, indent, values=None):
             for s in steps]
 
 
-def render_scenario(sc, questions, assumptions, items, comments=True):
+def render_scenario(sc, questions, assumptions, items, comments=True, trace=True):
     """Tek senaryonun Gherkin satırları, etiketlerden son adıma kadar.
 
     comments=False: akış, kaynak, taslak, not, son koşul ve veri yorumları
     yazılmaz (Jira kartında bunlar ayrı alanlarda verilir).
+    trace=False (yalın biçim): akış ve kaynak (izlenebilirlik) yorumları yazılmaz.
     """
     draft = sc["status"] == "needs_clarification"
     tags = [f"@{sc['id']}", "@pozitif" if sc["scenario_type"] == "positive" else "@negatif"]
@@ -631,14 +777,15 @@ def render_scenario(sc, questions, assumptions, items, comments=True):
     data_sets = sc["test_data"]["data_sets"]
     outline = len(data_sets) > 1
     out = ["  " + " ".join(tags), f"  {'Senaryo Taslağı' if outline else 'Senaryo'}: {sc['title']}"]
-    if comments:
+    if comments and trace:
         for flow in flow_of(sc, items):
             out.append(f"    # Akış ({tr(flow.get('flow_type', ''))}): {flow['description']}")
         t = sc["traceability"]
-        trace = f"# Kaynak: {', '.join(t['basis_ids'])} | {', '.join(t['test_condition_ids'])}"
+        line = f"# Kaynak: {', '.join(t['basis_ids'])} | {', '.join(t['test_condition_ids'])}"
         if t["coverage_item_ids"]:
-            trace += f" | {', '.join(t['coverage_item_ids'])}"
-        out.append(f"    {trace}")
+            line += f" | {', '.join(t['coverage_item_ids'])}"
+        out.append(f"    {line}")
+    if comments:
         if draft:
             for q in sc.get("open_question_ids", []):
                 if not is_answered(questions[q]):
@@ -667,7 +814,7 @@ def render_feature(doc, exclude_drafts, rep):
     questions = {q["id"]: q for q in doc["readiness"]["clarification_questions"]}
     assumptions = {a["id"]: a for a in doc["assumptions"]}
     items = {i["id"]: i for i in doc["coverage_items"]}
-    status_line = f"# Kart durumu: {doc['readiness']['status']}"
+    status_line = f"# Kart durumu: {tr(doc['readiness']['status'])}"
     if open_q:
         status_line += f" | Açık sorular: {', '.join(open_q)}"
     out = [
@@ -690,7 +837,7 @@ def render_feature(doc, exclude_drafts, rep):
         if sc["status"] == "needs_clarification" and exclude_drafts:
             rep.warn(sc["id"], "taslak senaryo --exclude-drafts nedeniyle üretilmedi")
             continue
-        out += [""] + render_scenario(sc, questions, assumptions, items)
+        out += [""] + render_scenario(sc, questions, assumptions, items, trace=doc.get("_mod") != "yalin")
         rendered += 1
     if not rendered:
         out += ["", f"  # Üretilecek senaryo yok (kart durumu: {doc['readiness']['status']}). Yeterlilik raporuna bakın."]
@@ -706,7 +853,43 @@ def md_table(header, rows):
     return lines
 
 
+def render_lean_report(doc):
+    """Yalın biçimin raporu: durum, sorular ve senaryo listesi; izlenebilirlik tabloları yok."""
+    src, rd = doc["source"], doc["readiness"]
+    counts = doc["coverage_summary"]["scenario_counts"]
+    ordered = sorted(rd["clarification_questions"], key=lambda q: (not q["blocking"], q["id"]))
+    open_q = [q for q in ordered if not is_answered(q)]
+    answered = [q for q in ordered if is_answered(q)]
+    items = {i["id"]: i for i in doc["coverage_items"]}
+    out = [
+        f"# Senaryo Raporu — {src['jira_key']}",
+        "",
+        f"**Kart:** {src['summary']}  ",
+        f"**Durum:** {tr(rd['status'])} — {rd['summary']}  ",
+        f"**Test ortamı:** {doc['test_environment']['summary']}  ",
+        f"**Üretilen senaryo:** {counts['total']} ({counts['ready']} hazır, {counts['needs_clarification']} taslak)",
+        "", "## Açık sorular", "",
+    ]
+    out += md_table(["ID", "Soru", "Bloklayıcı"], [[q["id"], q["question"], "evet" if q["blocking"] else "hayır"]
+                                                  for q in open_q]) if open_q else ["Açık soru yok."]
+    if answered:
+        out += ["", "## Yanıtlanan sorular", ""]
+        out += md_table(["ID", "Soru", "Yanıt"], [[q["id"], q["question"], q["answer"].get("text", "")] for q in answered])
+    out += ["", "## Senaryolar", ""]
+    out += md_table(["ID", "Akış", "Öncelik", "Tür", "Durum", "Başlık"],
+                    [[s["id"], ", ".join(tr(f["flow_type"]) for f in flow_of(s, items)), tr(s["priority"]),
+                      tr(s["scenario_type"]), tr(s["status"]), s["title"]] for s in execution_order(doc["test_scenarios"])])
+    gaps = inventory_gaps(doc["card_inventory"])
+    if gaps:
+        out += ["", f"**İşlenemeyen kaynaklar:** {', '.join(gaps)}"]
+    if doc["out_of_scope"]:
+        out += ["", "## Kapsam dışı", ""] + [f"- {o['item']}: {o['reason']}" for o in doc["out_of_scope"]]
+    return "\n".join(out) + "\n"
+
+
 def render_report(doc):
+    if doc.get("_mod") == "yalin":
+        return render_lean_report(doc)
     src, rd, inv = doc["source"], doc["readiness"], doc["card_inventory"]
     scenarios = doc["test_scenarios"]
     counts = doc["coverage_summary"]["scenario_counts"]
