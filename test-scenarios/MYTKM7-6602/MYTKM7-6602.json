@@ -1,0 +1,416 @@
+{
+  "schema_version": "3.0.0",
+  "generated_at": "2026-10-30T10:00:00+03:00",
+  "source": {
+    "jira_key": "MYTKM7-6602",
+    "issue_type": "story",
+    "summary": "Onay Şemasına İş Havuzu İşlemleri İçin Atama Geçmişi Eklenmesi",
+    "url": "https://jira.apps.nonfin-vip.zke.zb/browse/MYTKM7-6602",
+    "components": [],
+    "labels": [],
+    "jira_priority": "Low"
+  },
+  "card_inventory": {
+    "fields": [
+      {"field": "summary", "status": "used", "note": "Özellik adı olarak kullanıldı"},
+      {"field": "issue_type", "status": "used", "note": "Story → story"},
+      {"field": "description", "status": "empty", "note": "XML'de <description/> boş; kullanıcı hikâyesi 'Kullanıcı Hikayesi' özel alanında"},
+      {"field": "acceptance_criteria", "status": "used", "note": "'Kabul Kriterleri' özel alanında 4 kriter (sekme görünürlüğü, konumlandırma, tablo yapısı, boş veri)"},
+      {"field": "environment", "status": "empty", "note": "XML'de boş; ortam bilgisi özel alanlardan ve QA yorumundan alındı"},
+      {"field": "priority", "status": "used", "note": "Low → risk etki puanına girdi"},
+      {"field": "labels", "status": "empty", "note": "XML'de boş"},
+      {"field": "components", "status": "not_provided", "note": "XML'de yok"},
+      {"field": "affects_versions", "status": "not_relevant", "note": "Story kartı"},
+      {"field": "fix_versions", "status": "used", "note": "06.11.2026 Kasım Aylık Yaygınlaştırma → test ortamı sürümü"},
+      {"field": "reporter", "status": "used", "note": "Asiye Nur ARSLAN (Yazılım Araçları)"},
+      {"field": "assignee", "status": "used", "note": "Asiye Nur ARSLAN (Yazılım Araçları); geliştirici"},
+      {"field": "subtasks", "status": "empty", "note": "XML'de boş"},
+      {"field": "custom_fields", "status": "used", "note": "Kullanıcı Hikayesi, Kabul Kriterleri, Erişim Noktası, Kullanıcı Profili, Client Environment, Epic Link, Test Senaryosu Tipi"}
+    ],
+    "attachments": [
+      {
+        "name": "image-2026-10-22-16-07-07-246.png",
+        "type": "image",
+        "status": "not_provided",
+        "summary": "XML'de yalnızca ek adı var; içerik paylaşılmadı. QA yorumunda (C-04) kullanıcıya atanmış işlemin Atama Geçmişi sekmesi ekran görüntüsü olarak gömülü atfı var.",
+        "basis_ids": []
+      },
+      {
+        "name": "image-2026-10-22-16-24-57-789.png",
+        "type": "image",
+        "status": "not_provided",
+        "summary": "XML'de yalnızca ek adı var; içerik paylaşılmadı. QA yorumunda (C-04) havuzda hiç aksiyon alınmamış işlemin ekran görüntüsü olarak gömülü atfı var.",
+        "basis_ids": []
+      }
+    ],
+    "comments": [
+      {
+        "id": "C-01",
+        "author": "JIRAUSER24340",
+        "date": "2026-10-08",
+        "role": "tester",
+        "status": "used",
+        "summary": "Konuyla ilgili UX'e ZTKD-1701 biletinin açıldığı bildiriliyor; dış bağlantı olarak kaydedildi, açılmadı.",
+        "basis_ids": []
+      },
+      {
+        "id": "C-02",
+        "author": "JIRAUSER24340",
+        "date": "2026-10-19",
+        "role": "tester",
+        "status": "used",
+        "summary": "Sekme içeriğinin UX dönüşüne göre tablo olarak ekleneceği belirtiliyor; AC-03'teki tablo gösterimini destekler (CN-01).",
+        "basis_ids": ["CN-01"]
+      },
+      {
+        "id": "C-03",
+        "author": "skarakas",
+        "date": "2026-10-21",
+        "role": "developer",
+        "status": "used",
+        "summary": "Geliştirmenin test ortamına taşındığı, taşınacak nesnenin APRTINBX[FED] olduğu ve testlerden sonra Dinamik ortam taşıması yapılacağı bildiriliyor (CN-02).",
+        "basis_ids": ["CN-02"]
+      },
+      {
+        "id": "C-04",
+        "author": "JIRAUSER24340",
+        "date": "2026-10-22",
+        "role": "tester",
+        "status": "used",
+        "summary": "QA doğrulaması (Kullanıcı:SOZMEN, Ortam:ZB TEST): İş Havuzu onaylarında sekmenin 'Onay Akışı' ve 'Mesajlaşma' arasında geldiği, standart onaylarda gelmediği teyit edildi. Kullanıcıya atanmış işlem için FLA_WORKITEMACTION sorgusu ve iki ekran görüntüsü; havuzda hiç aksiyon alınmamış işlem örneği (Kullanıcı: DOGOZKAN) var. Bu bulgular AC-01 ve AC-04 davranışlarını doğrulayan test kanıtıdır; yeni kural içermez.",
+        "basis_ids": []
+      }
+    ],
+    "linked_issues": [
+      {"key": "KDTKM1-3056", "link_type": "relates to", "status": "not_accessible", "note": "XML'de yalnızca anahtar var; açıklama yok."},
+      {"key": "MYTKM7-6748", "link_type": "tested by", "status": "not_accessible", "note": "XML'de yalnızca anahtar var; kart bir test kartı tarafından test ediliyor (Tests bağlantısı)"},
+      {"key": "MYTKM7-6650", "link_type": "epic", "status": "not_accessible", "note": "Epic Link özel alanı; XML'de yalnızca anahtar var"}
+    ],
+    "external_links": [
+      {"name": "ZTKD-1701", "status": "not_accessible", "note": "C-01 yorumunda UX tasarım biletinin Jira adresi anılıyor; açılmadı."}
+    ]
+  },
+  "test_environment": {
+    "summary": "ZB TEST ortamı, İnternet kanalı, şube personeli/Genel Müdürlük kullanıcısı; sürüm 06.11.2026 Kasım Aylık Yaygınlaştırma",
+    "details": [
+      {"aspect": "ortam", "value": "Test", "source": {"field": "custom_field", "ref": "Client Environment"}},
+      {"aspect": "ortam", "value": "ZB TEST (QA doğrulamasında kullanılan ortam)", "source": {"field": "comment", "ref": "C-04"}},
+      {"aspect": "kanal", "value": "İnternet", "source": {"field": "custom_field", "ref": "Erişim Noktası"}},
+      {"aspect": "kullanici_tipi", "value": "Şube Personeli/Genel Müdürlük Kullanıcısı (Kullanıcı Hikâyesi); Kullanıcı Profili alanı 'Anonim' diyor, çelişki CF-01", "source": {"field": "custom_field", "ref": "Kullanıcı Hikayesi"}},
+      {"aspect": "surum", "value": "06.11.2026 Kasım Aylık Yaygınlaştırma", "source": {"field": "fix_versions"}}
+    ]
+  },
+  "readiness": {
+    "status": "partial",
+    "summary": "Kart test edilebilir: dört kabul kriteri sekme görünürlüğünü, sekme sıralamasını, log tablosu gösterimini ve boş veri mesajını tanımlıyor; QA yorumu davranışları test ortamında doğrulamış. Bilgilendirme mesajının birebir metni ('benzeri' diye geçiyor), Small Version tablo formatının kolonları (okunamayan eklerde) ve kullanıcı profili çelişkisi netleştirilmemiş.",
+    "checks": [
+      {"id": "R1", "criterion": "Amaç: ne, kimin için, neden", "result": "pass", "finding": "Şube Personeli/Genel Müdürlük Kullanıcısı, İş Havuzu onaylarında atama süreçlerini ve geçmiş hareketlerini şema üzerinden hızlıca takip etmek için 'Atama Geçmişi' sekmesini istiyor (Kullanıcı Hikayesi)."},
+      {"id": "R2", "criterion": "Test edilecek gereksinim var", "result": "pass", "finding": "'Kabul Kriterleri' özel alanında 4 madde: koşullu sekme görünürlüğü, sekme konumlandırması, FLA_WORKITEMACTION loglarının Small Version tabloda listelenmesi, boş veri senaryosu."},
+      {"id": "R3", "criterion": "Gereksinimler test edilebilir", "result": "pass", "finding": "Her kriter gözlemlenebilir sonuç tanımlıyor: sekme görüntülenir/görüntülenmez, sıralama, tablo formatında log listesi, bilgilendirme mesajı."},
+      {"id": "R4", "criterion": "Veri kuralları: zorunlu alan, format, min/max", "result": "partial", "finding": "Girdi alanı yok; ancak 'Small Version' tablo formatının kolonları 'tarih, kullanıcı, işlem tipi vb.' diye açık bırakılmış ve format detayı paylaşılmayan tasarım eklerinde (Q-03)."},
+      {"id": "R5", "criterion": "Hata ve olumsuz durumlardaki davranış", "result": "partial", "finding": "Sekmenin standart onaylarda görüntülenmemesi ve boş veri mesajı tanımlı; ancak mesaj metni '\"Görüntülenecek atama geçmişi bulunmamaktadır\" benzeri' diye birebir verilmemiş (Q-01)."},
+      {"id": "R6", "criterion": "Roller, yetkiler, ön koşullar", "result": "partial", "finding": "Kullanıcı Hikâyesi 'Şube Personeli/Genel Müdürlük Kullanıcısı' derken 'Kullanıcı Profili' özel alanı 'Anonim' diyor (CF-01, Q-02)."},
+      {"id": "R7", "criterion": "Tutarlılık: alanlar arası çelişki", "result": "partial", "finding": "Kullanıcı Hikâyesi ile Kullanıcı Profili özel alanı arasında çözülmemiş profil çelişkisi var (CF-01); ana akışın sonucunu değiştirmez, yalnızca ön koşul profilini etkiler."},
+      {"id": "R8", "criterion": "Kapsam sınırı: ekran, kanal, bağımlılık", "result": "pass", "finding": "Kapsam net: Onay Şema Bileşeni içinde yalnızca İş Havuzu tabındaki onay işlemleri; kanal İnternet. Standart onaylarda sekme çıkmaması kapsam sınırını netleştiriyor."},
+      {"id": "R9", "criterion": "Test ortamı", "result": "pass", "finding": "Client Environment: Test; QA yorumunda ZB TEST; Erişim Noktası: İnternet; sürüm 06.11.2026 Kasım Aylık Yaygınlaştırma (fixVersion). Geliştirme test ortamına taşınmış (C-03)."},
+      {"id": "R10", "criterion": "Ekler ve bağlantılar işlendi", "result": "partial", "finding": "İki ekran görüntüsü eki yalnızca adıyla var (içerik paylaşılmadı), 3 bağlı kart (KDTKM1-3056, MYTKM7-6748, MYTKM7-6650) ve ZTKD-1701 dış bağlantısı erişilemedi. Kurallar kabul kriterleri alanında olduğu için senaryo üretimini bloke etmez; Small Version format detayı eklerdeyse Q-03 ile netleşmelidir."}
+    ],
+    "clarification_questions": [
+      {
+        "id": "Q-01",
+        "question": "Atama geçmişi bulunmayan işlemde gösterilecek bilgilendirme mesajının birebir metni nedir? Kart '\"Görüntülenecek atama geçmişi bulunmamaktadır\" benzeri bir uyarı mesajı' diyerek metni örnekle açık bırakıyor.",
+        "related_check_ids": ["R5"],
+        "related_basis_ids": ["AC-04"],
+        "blocking": false,
+        "addressed_to": "product_owner"
+      },
+      {
+        "id": "Q-02",
+        "question": "Onay işlemini yapan kullanıcının profili nedir? Kullanıcı Hikâyesi 'Şube Personeli/Genel Müdürlük Kullanıcısı' derken 'Kullanıcı Profili' özel alanı 'Anonim' olarak dolu; ikisi çelişiyor.",
+        "related_check_ids": ["R6", "R7"],
+        "related_basis_ids": ["BR-01", "BR-02"],
+        "related_conflict_ids": ["CF-01"],
+        "blocking": false,
+        "addressed_to": "business_analyst"
+      },
+      {
+        "id": "Q-03",
+        "question": "'Small Version' tablo formatının kolonları nelerdir? Kart 'tarih, kullanıcı, işlem tipi vb.' diyor; format detayı paylaşılmayan ekran görüntüsü eklerinde duruyor olabilir. Kolon listesi metin olarak paylaşılabilir mi?",
+        "related_check_ids": ["R4", "R10"],
+        "related_basis_ids": ["AC-03"],
+        "blocking": false,
+        "addressed_to": "designer"
+      }
+    ]
+  },
+  "test_basis": {
+    "items": [
+      {
+        "id": "AC-01",
+        "kind": "acceptance_criterion",
+        "text": "Sekme Görünürlük Kontrolü (Koşullu Gösterim): Kriter: \"Atama Geçmişi\" sekmesi yalnızca \"İş Havuzu\" tabındaki onay işlemleri için görünür olmalıdır. Doğrulama: İş Havuzu onaylarında \"Onay Akışı\" ve \"Mesajlaşma\" sekmeleri arasında \"Atama Geçmişi\" sekmesi görüntülenir. İş Havuzu dışındaki standart onay işlemlerinde bu sekme görüntülenmez.",
+        "source": {"field": "custom_field", "ref": "Kabul Kriterleri"},
+        "format": "rule",
+        "testability": "testable"
+      },
+      {
+        "id": "AC-02",
+        "kind": "acceptance_criterion",
+        "text": "Sekme Konumlandırması: Kriter: Yeni sekme, mevcut \"Onay Akışı\" sekmesi ile \"Mesajlaşma\" sekmesi arasında yer almalıdır. Doğrulama: Sekme sıralamasının Onay Akışı → Atama Geçmişi → Mesajlaşma şeklinde olduğu doğrulanır.",
+        "source": {"field": "custom_field", "ref": "Kabul Kriterleri"},
+        "format": "rule",
+        "testability": "testable"
+      },
+      {
+        "id": "AC-03",
+        "kind": "acceptance_criterion",
+        "text": "Veri Gösterimi ve Tablo Yapısı: Kriter: Sekme içeriğinde FLA_WORKITEMACTION tablosundaki loglar, \"Small Version\" tablo formatında listelenmelidir. Doğrulama: Sekmeye tıklandığında ilgili işleme ait atama loglarının (tarih, kullanıcı, işlem tipi vb.) belirlenen küçük tablo formatında geldiği doğrulanır.",
+        "source": {"field": "custom_field", "ref": "Kabul Kriterleri"},
+        "format": "rule",
+        "testability": "partially_testable",
+        "issue": "Small Version tablo formatının kolon seti kartta 'vb.' ile açık bırakılmış; format detayı paylaşılmayan tasarım eklerinde olabilir (Q-03)."
+      },
+      {
+        "id": "AC-04",
+        "kind": "acceptance_criterion",
+        "text": "Boş Veri Senaryosu: Kriter: İlgili işlem için herhangi bir atama geçmişi bulunmaması durumunda kullanıcıya uygun bir bilgilendirme mesajı gösterilmelidir. Doğrulama: Log bulunmayan bir işlemde sekme açıldığında \"Görüntülenecek atama geçmişi bulunmamaktadır\" benzeri bir uyarı mesajı görülür.",
+        "source": {"field": "custom_field", "ref": "Kabul Kriterleri"},
+        "format": "rule",
+        "testability": "partially_testable",
+        "issue": "Mesaj metni 'benzeri bir uyarı mesajı' diye birebir tanımlanmamış (Q-01); senaryo davranışı (mesaj görüntülenmesi) test edilebilir."
+      },
+      {
+        "id": "BR-01",
+        "kind": "business_rule",
+        "text": "r [Şube Personeli/Genel Müdürlük Kullanıcısı] olarak, İş Havuzu üzerinden gerçekleştirdiğim onay işlemlerinde, Onay Şema Bileşeni içerisinde \"Atama Geçmişi\" sekmesini görmek istiyorum; böylece işlemin atama süreçlerini ve geçmiş hareketlerini şema üzerinden hızlıca takip edebilirim.",
+        "source": {"field": "custom_field", "ref": "Kullanıcı Hikayesi"},
+        "format": "free_text",
+        "testability": "testable"
+      },
+      {
+        "id": "BR-02",
+        "kind": "business_rule",
+        "text": "Anonim",
+        "source": {"field": "custom_field", "ref": "Kullanıcı Profili"},
+        "format": "rule",
+        "testability": "partially_testable",
+        "issue": "Kullanıcı Profili alanı 'Anonim' diyor; Kullanıcı Hikâyesi ise 'Şube Personeli/Genel Müdürlük Kullanıcısı' der. Onay işlemi anonim yapılamayacağı için alanın varsayılan/yanlış dolu olduğu düşünülmektedir (CF-01, Q-02)."
+      },
+      {
+        "id": "CN-01",
+        "kind": "constraint",
+        "text": "UX dönüşüne göre tablo olarak eklenmesi sağlanacaktır.",
+        "source": {"field": "comment", "ref": "C-02"},
+        "format": "free_text"
+      },
+      {
+        "id": "CN-02",
+        "kind": "constraint",
+        "text": "Geliştirme test ortama kadar taşındı. testlerden sonra Dinamik ortam taşıması yapılacak.",
+        "source": {"field": "comment", "ref": "C-03"},
+        "format": "free_text"
+      }
+    ]
+  },
+  "conflicts": [
+    {
+      "id": "CF-01",
+      "description": "'Kullanıcı Profili' özel alanı 'Anonim' değerini taşırken Kullanıcı Hikâyesi aktörü 'Şube Personeli/Genel Müdürlük Kullanıcısı' olarak tanımlıyor. Onay işlemleri oturumlu kullanıcı gerektirdiği için 'Anonim' değerinin kart şablonundan kalan varsayılan olduğu düşünülmektedir; ancak bu yorum kartta açık bir karar olarak yer almıyor.",
+      "basis_ids": ["BR-01", "BR-02"],
+      "status": "unresolved",
+      "question_id": "Q-02"
+    }
+  ],
+  "test_conditions": [
+    {
+      "id": "COND-01",
+      "description": "Atama Geçmişi sekmesi yalnızca İş Havuzu onay işlemlerinde görünür; İş Havuzu dışındaki standart onay işlemlerinde görüntülenmez",
+      "basis_ids": ["AC-01", "BR-01"],
+      "risk": {
+        "likelihood": 2,
+        "impact": 2,
+        "level": "medium",
+        "rationale": "Koşullu gösterim mantığı yeni geliştirme (olasılık 2); sekmenin yanlış işlemde görünmesi onay sürecinde kullanıcıyı yanıltır, Jira önceliği Low ile etki 2."
+      },
+      "techniques": ["use_case_based", "acceptance_criteria_based"]
+    },
+    {
+      "id": "COND-02",
+      "description": "Sekme sıralaması Onay Akışı → Atama Geçmişi → Mesajlaşma şeklindedir",
+      "basis_ids": ["AC-02"],
+      "risk": {
+        "likelihood": 1,
+        "impact": 1,
+        "level": "low",
+        "rationale": "Statik sekme sıralaması olgun alan (olasılık 1); yanlış sıralama kozmetik etki (Jira önceliği Low, etki 1)."
+      },
+      "techniques": ["use_case_based", "acceptance_criteria_based"]
+    },
+    {
+      "id": "COND-03",
+      "description": "Sekmede işleme ait FLA_WORKITEMACTION atama logları tarih, kullanıcı, işlem tipi bilgileriyle Small Version tablo formatında listelenir",
+      "basis_ids": ["AC-03", "CN-01"],
+      "risk": {
+        "likelihood": 2,
+        "impact": 2,
+        "level": "medium",
+        "rationale": "Log verisinin doğru işleme eşlenmesi ve format veri bağımlı (olasılık 2); yanlış/eksik log onay geçmişini izleyen kullanıcıyı yanıltır (etki 2, Jira önceliği Low)."
+      },
+      "techniques": ["use_case_based", "acceptance_criteria_based"]
+    },
+    {
+      "id": "COND-04",
+      "description": "Atama geçmişi olmayan işlemde sekme bilgilendirme mesajı gösterir",
+      "basis_ids": ["AC-04"],
+      "risk": {
+        "likelihood": 2,
+        "impact": 1,
+        "level": "low",
+        "rationale": "Boş veri kolu basit koşul (olasılık 2); kozmetik bilgilendirme davranışı (etki 1, Jira önceliği Low)."
+      },
+      "techniques": ["use_case_based", "acceptance_criteria_based"]
+    }
+  ],
+  "coverage_items": [
+    {
+      "id": "UC-ANA",
+      "technique": "use_case_based",
+      "test_condition_ids": ["COND-01", "COND-02", "COND-03"],
+      "description": "Onay sistemine şube personeli girişi → İş Havuzu sekmesinden atama aksiyonu alınmış onay bekleyen işlemi açma → Onay Akışı ile Mesajlaşma arasında Atama Geçmişi sekmesi görüntülenir → sekmede işleme ait atama logları Small Version tablo formatında listelenir",
+      "flow_type": "main"
+    },
+    {
+      "id": "UC-HATA-SEKMEYOK",
+      "technique": "use_case_based",
+      "test_condition_ids": ["COND-01"],
+      "description": "Ana akış; İş Havuzu dışındaki standart onay işlemi açılır → Atama Geçmişi sekmesi görüntülenmez",
+      "flow_type": "exception"
+    },
+    {
+      "id": "UC-HATA-BOSS",
+      "technique": "use_case_based",
+      "test_condition_ids": ["COND-04"],
+      "description": "Ana akış; İş Havuzu sekmesinden hiç aksiyon alınmamış onay bekleyen işlemi açma → Atama Geçmişi sekmesi görüntülenir → sekmede bilgilendirme mesajı gelir, log tablosu yok",
+      "flow_type": "exception"
+    }
+  ],
+  "feature": {
+    "name": "Onay Şemasına İş Havuzu İşlemleri İçin Atama Geçmişi Eklenmesi",
+    "description": "Şube Personeli/Genel Müdürlük Kullanıcısı, İş Havuzu onay işlemlerinde Onay Şema Bileşeni içinde Atama Geçmişi sekmesini görür; işlemin atama logları Small Version tablo formatında listelenir.",
+    "tags": ["@onay-semasi", "@is-havuzu", "@dys"],
+    "background": [
+      {"keyword": "given", "text": "Şube Personeli/Genel Müdürlük Kullanıcısı olarak onay sistemine giriş yapmışım"}
+    ]
+  },
+  "test_scenarios": [
+    {
+      "id": "TS-MYTKM7-6602-001",
+      "title": "İş Havuzu onayında Atama Geçmişi sekmesi doğru sırayla görüntülenir ve atama logları Small Version tabloda listelenir",
+      "objective": "İş Havuzu onay işleminde Atama Geçmişi sekmesinin koşullu görünürlüğünü (AC-01), Onay Akışı ile Mesajlaşma arasındaki konumunu (AC-02) ve FLA_WORKITEMACTION loglarının Small Version tablo formatında listelenmesini (AC-03) uçtan uca doğrular.",
+      "status": "ready",
+      "scenario_type": "positive",
+      "test_level": "system",
+      "test_type": "functional",
+      "techniques": ["use_case_based", "acceptance_criteria_based"],
+      "priority": "medium",
+      "traceability": {
+        "basis_ids": ["AC-01", "AC-02", "AC-03", "BR-01"],
+        "test_condition_ids": ["COND-01", "COND-02", "COND-03"],
+        "coverage_item_ids": ["UC-ANA"]
+      },
+      "steps": [
+        {"keyword": "when", "text": "Eğer ki Onay Şema Bileşeni'nde İş Havuzu sekmesinden atama aksiyonu alınmış onay bekleyen bir işlemi açarsam"},
+        {"keyword": "then", "text": "\"Onay Akışı\" ve \"Mesajlaşma\" sekmeleri arasında \"Atama Geçmişi\" sekmesini görürüm"},
+        {"keyword": "and", "text": "sekmelerin \"Onay Akışı\" → \"Atama Geçmişi\" → \"Mesajlaşma\" sırasıyla dizildiğini görürüm"},
+        {"keyword": "when", "text": "Eğer ki \"Atama Geçmişi\" sekmesine tıklarsam"},
+        {"keyword": "then", "text": "işleme ait atama loglarının tarih, kullanıcı ve işlem tipi bilgileriyle \"Small Version\" tablo formatında listelendiğini görürüm"}
+      ],
+      "test_data": {"parameters": [], "data_sets": []},
+      "tags": ["@smoke"],
+      "notes": [
+        "Kullanıcı Hikâyesi rolleri ile 'Kullanıcı Profili: Anonim' değeri çelişiyor (CF-01, Q-02); senaryo Kullanıcı Hikâyesi rollerini esas alır.",
+        "QA kanıtı (C-04): aynı davranış ZB TEST ortamında Kullanıcı:SOZMEN işlemiyle gözlemlenmiştir."
+      ]
+    },
+    {
+      "id": "TS-MYTKM7-6602-002",
+      "title": "İş Havuzu dışındaki standart onay işleminde Atama Geçmişi sekmesi görüntülenmez",
+      "objective": "Atama Geçmişi sekmesinin yalnızca İş Havuzu onaylarında koşullu gösterildiğini; standart onay işlemlerinde görüntülenmediğini (AC-01) doğrular.",
+      "status": "ready",
+      "scenario_type": "negative",
+      "test_level": "system",
+      "test_type": "functional",
+      "techniques": ["use_case_based", "acceptance_criteria_based"],
+      "priority": "medium",
+      "traceability": {
+        "basis_ids": ["AC-01"],
+        "test_condition_ids": ["COND-01"],
+        "coverage_item_ids": ["UC-HATA-SEKMEYOK"]
+      },
+      "steps": [
+        {"keyword": "when", "text": "Eğer ki İş Havuzu dışındaki standart bir onay işlemini açarsam"},
+        {"keyword": "then", "text": "işlem detayında \"Atama Geçmişi\" sekmesi görüntülenmez"}
+      ],
+      "test_data": {"parameters": [], "data_sets": []},
+      "notes": [
+        "QA kanıtı (C-04): standart onay işlemlerinde sekmenin gelmediği teyit edilmiştir."
+      ]
+    },
+    {
+      "id": "TS-MYTKM7-6602-003",
+      "title": "Atama geçmişi olmayan İş Havuzu işleminde bilgilendirme mesajı gösterilir",
+      "objective": "FLA_WORKITEMACTION kaydı bulunmayan (hiç aksiyon alınmamış) İş Havuzu işleminde sekmenin yine göründüğünü ve boş veri durumunda bilgilendirme mesajı gösterildiğini (AC-04) doğrular.",
+      "status": "ready",
+      "scenario_type": "negative",
+      "test_level": "system",
+      "test_type": "functional",
+      "techniques": ["use_case_based", "acceptance_criteria_based"],
+      "priority": "low",
+      "traceability": {
+        "basis_ids": ["AC-04"],
+        "test_condition_ids": ["COND-04"],
+        "coverage_item_ids": ["UC-HATA-BOSS"]
+      },
+      "steps": [
+        {"keyword": "when", "text": "Eğer ki İş Havuzu sekmesinden hiç atama aksiyonu alınmamış onay bekleyen bir işlemi açarsam"},
+        {"keyword": "then", "text": "\"Atama Geçmişi\" sekmesini görürüm"},
+        {"keyword": "when", "text": "Eğer ki \"Atama Geçmişi\" sekmesine tıklarsam"},
+        {"keyword": "then", "text": "işleme ait atama geçmişi bulunmadığına dair bir bilgilendirme mesajı görüntülenir"}
+      ],
+      "test_data": {"parameters": [], "data_sets": []},
+      "open_question_ids": ["Q-01"],
+      "notes": [
+        "Kartta mesaj metni '\"Görüntülemecek atama geçmişi bulunmamaktadır\" benzeri' diye açık bırakıldığı için beklenen metin tırnaksız yazılmıştır; birebir metin Q-01 yanıtıyla senaryoya işlenecektir.",
+        "QA kanıtı (C-04): havuzda hiç aksiyon alınmamış işlem (Kullanıcı:DOGOZKAN) örneğiyle doğrulanmıştır."
+      ]
+    }
+  ],
+  "coverage_summary": {
+    "basis": [
+      {"basis_id": "AC-01", "scenario_ids": ["TS-MYTKM7-6602-001", "TS-MYTKM7-6602-002"], "status": "covered", "note": "Hem görünürlük (İş Havuzu) hem görünmezlik (standart onay) tarafı test ediliyor."},
+      {"basis_id": "AC-02", "scenario_ids": ["TS-MYTKM7-6602-001"], "status": "covered"},
+      {"basis_id": "AC-03", "scenario_ids": ["TS-MYTKM7-6602-001"], "status": "partially_covered", "note": "Tablo gösterimi test ediliyor; Small Version kolon seti Q-03 yanıtıyla netleşmeli."},
+      {"basis_id": "AC-04", "scenario_ids": ["TS-MYTKM7-6602-003"], "status": "partially_covered", "note": "Boş veri davranışı test ediliyor; mesajın birebir metni Q-01 yanıtı bekliyor."},
+      {"basis_id": "BR-01", "scenario_ids": ["TS-MYTKM7-6602-001"], "status": "covered", "note": "Kullanıcı Hikâyesi aktörü ve sekme ihtiyacı ana akışta karşılanıyor."},
+      {"basis_id": "BR-02", "scenario_ids": [], "status": "not_covered", "note": "'Kullanıcı Profili: Anonim' değeri Kullanıcı Hikâyesi ile çelişiyor (CF-01, Q-02); profil davranışı çelişki çözülene kadar test edilemez."}
+    ],
+    "techniques": [
+      {"technique": "use_case_based", "total_items": 3, "covered_items": 3, "coverage_percent": 100}
+    ],
+    "uncovered_items": [],
+    "scenario_counts": {"total": 3, "positive": 1, "negative": 2, "ready": 3, "needs_clarification": 0}
+  },
+  "assumptions": [],
+  "out_of_scope": [
+    {
+      "item": "Geliştirmenin Dinamik ortamına taşınması ve taşınacak nesneler (APRTINBX[FED])",
+      "reason": "Geliştirici yorumundaki (C-03) teslim/dağıtım işlemi; manuel fonksiyonel senaryo kapsamı dışında, ortam hazır bilgisidir.",
+      "source": {"field": "comment", "ref": "C-03"}
+    },
+    {
+      "item": "UX tasarım çalışması (ZTKD-1701 biletinin kapsamı)",
+      "reason": "UX tasarımı ayrı bilette yönetiliyor; bu kart yalnızca tasarlanan sekmenin davranışını test eder.",
+      "source": {"field": "comment", "ref": "C-01"}
+    }
+  ]
+}
