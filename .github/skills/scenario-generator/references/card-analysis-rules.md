@@ -193,17 +193,31 @@ kartın kendisi ile birlikte bağlı kartlar ve alt görevlerdir.
 - Bir sistem hata verdiğinde diğerlerinin davranışı (geri alma, yeniden
   deneme, bildirim) R5 kapsamındadır; kart tanımlamıyorsa soru yazılır.
 
-## 9. Girdi: Jira XML dışa aktarımı
+## 9. Girdi: Jira XML dışa aktarımı veya REST'ten okuma
 
 Kart, kullanıcının Jira'dan aldığı XML dışa aktarımıyla (kart → Dışa aktar →
-XML) gelir. Jira'ya bağlanılmaz, oturum açılmaz, ek indirilmez; XML'deki
-`<link>` ve diğer adresler açılmaz. Kart verisinin tek kaynağı XML ve
-kullanıcının isteğe açıkça eklediği dosyalardır.
+XML) ya da `parse_jira_xml.py --from-jira` ile Jira REST'ten gelir. XML
+modunda Jira'ya bağlanılmaz; XML'deki `<link>` ve diğer adresler açılmaz.
+REST modunda yalnızca script bağlanır: kartın alanları `GET /rest/api/2/issue`
+ile okunur, bağlı kartların özetleri tek JQL aramasıyla çekilir; ek içeriği
+indirilmez, ekler hâlâ `not_provided` kalır. Jeton yalnızca ortam
+değişkeninden okunur, hiçbir dosyaya veya sohbete yazılmaz. Kart verisinin
+tek kaynağı bu iki yoldan okunan kart ve kullanıcının isteğe açıkça eklediği
+dosyalardır.
 
-Bu bölümdeki eşlemeyi `scripts/parse_jira_xml.py` uygular ve sonucu
-`<KEY>-kart.md` ile `<KEY>-kart.json` olarak yazar; LLM XML'i okumaz. Bölüm,
-script çalıştırılamadığında (Python yok) XML'in elle nasıl okunacağını ve
-script'in neyi neye eşlediğini belgeler.
+Bu bölümdeki eşlemeyi `scripts/parse_jira_xml.py` her iki modda da uygular ve
+sonucu `<KEY>-kart.md` ile `<KEY>-kart.json` olarak yazar; LLM XML'i veya
+REST yanıtını okumaz. Bölüm, script çalıştırılamadığında (Python yok) XML'in
+elle nasıl okunacağını ve script'in neyi neye eşlediğini belgeler. REST modu
+aynı alan adlarına eşler (`fields.summary` → `<summary>`, `fields.comment` →
+`<comments>`, `fields.issuelinks` → `<issuelinks>` vb.); farklılıklar:
+
+| Konu | XML modu | `--from-jira` modu |
+|---|---|---|
+| Bağlı kartlar | Yalnızca anahtar; özet yok | Anahtar + özet tek JQL aramasıyla; özet envanter `note`'una yazılır, durum yine `not_accessible` |
+| Ekler | Yalnızca ad, boyut | Yalnızca ad, boyut; içerik indirilmez |
+| Özel alan adları | XML'de adıyla | `/editmeta`'dan çözülür; meta okunamazsa kimliğiyle |
+| R10 etkisi | Bağlı kart `not_accessible` → `pass` olmaz | Özet okunduysa bağlantı bilgisi zengindir ama ekler `not_provided` kaldığı için R10 yine en fazla `partial` |
 
 ### 9.1 Öğe eşlemesi
 

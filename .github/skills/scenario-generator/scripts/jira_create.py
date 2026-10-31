@@ -13,8 +13,11 @@ Kullanım:
     python scripts/jira_create.py test-scenarios/KEY/KEY.json --deneme     # gönderilecek alanları göster
     python scripts/jira_create.py test-scenarios/KEY/KEY.json              # seçim listesinde işaretlileri aç
     python scripts/jira_create.py test-scenarios/KEY/KEY.json --ids TS-KEY-001,TS-KEY-003
+    python scripts/jira_create.py test-scenarios/KEY/KEY.json --yorum      # soru-yanıt özetini kaynak karta yorumla
 
 Açılan kartlar <KEY>-jira.json kaydına yazılır; aynı senaryo ikinci kez açılmaz.
+Kartlar açıldıktan sonra soru-yanıt özeti kaynak karta yorum olarak eklenir
+(aynı yorum ikinci kez eklenmez).
 Çıkış kodu: 0 = hepsi açıldı veya zaten açıktı, 1 = en az biri açılamadı, 2 = ayar/dosya hatası.
 """
 
@@ -139,6 +142,9 @@ class Jira:
                 message = f"Jira kimliği doğrulamadı (401); jeton geçersiz veya süresi dolmuş. {message}"
             elif exc.code == 403:
                 message = f"Yetki yok (403). {message}"
+            elif exc.code == 400 and "cannot be set" in message:
+                message = (f"Kart alanları reddedildi (400); çoğunlukla hesabın bu projede kart açma "
+                           f"(Create Issues) izni yok ya da kart türü ekranı alanları içermiyor. {message}")
             raise JiraHatasi(exc.code, message) from None
         except (urllib.error.URLError, socket.timeout, TimeoutError, ConnectionError) as exc:
             reason = getattr(exc, "reason", exc)
@@ -326,6 +332,52 @@ def load_record(path):
     return rg.load_json(path) if Path(path).exists() else {}
 
 
+def answer_text(q):
+    """Sorunun kullanıcının verdiği yanıtın okunur metni; yanıtsızsa 'Bilinmiyor'."""
+    answer = q.get("answer") or {}
+    if rg.is_answered(q):
+        if answer.get("text"):
+            return answer["text"]
+        return next((o["text"] for o in q.get("options", []) if o["id"] == answer.get("choice")), "")
+    return "Bilinmiyor — senaryo taslak olarak bırakıldı"
+
+
+def question_comment(doc):
+    """Kart sahibinin kaynaktan doğrulaması için soru-yanıt özeti (Jira wiki biçimi)."""
+    ordered = sorted(doc["readiness"]["clarification_questions"], key=lambda q: (not q["blocking"], q["id"]))
+    if not ordered:
+        return ""
+    lines = [f"Senaryo üretiminde bu karttan çıkan netleştirme soruları soruldu; üretime devam edebilmek için "
+             f"yanıtlar aşağıdaki gibi seçildi. Kart sahibi kontrol edip yanlış olanın yanıtını düzeltirse "
+             f"ilgili senaryolar güncellenir.",
+             ""]
+    for q in ordered:
+        options = "; ".join(f"{o['id']}) {o['text']}" for o in q.get("options", []))
+        lines.append(f"*{q['id']}{' (bloklayıcı)' if q.get('blocking') else ''}:* {q['question']}")
+        if options:
+            lines.append(f"Seçenekler: {options}")
+        lines.append(f"Seçilen yanıt: {answer_text(q)}")
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
+def add_comment(jira, key, body):
+    return jira.request("POST", f"/rest/api/2/issue/{urllib.parse.quote(key)}/comment", {"body": body})
+
+
+def post_question_comment(doc, jira, record, record_file):
+    """Soru-yanıt özetini kaynak karta bir kez yorumlar; kayıtta bayrak bırakır."""
+    if record.get("_sorular_yorumlandi"):
+        return None
+    body = question_comment(doc)
+    if not body:
+        return None
+    add_comment(jira, doc["source"]["jira_key"], body)
+    record["_sorular_yorumlandi"] = True
+    Path(record_file).write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return doc["source"]["jira_key"]
+
+
 def create_cards(doc, ids, cfg, jira, record_file, dry_run=False):
     """Seçilen senaryoları açar. Her sonuç: id, durum (acildi | zaten | deneme | hata | baglanamadi), key, url, mesaj."""
     record = load_record(record_file)
@@ -377,6 +429,13 @@ def create_cards(doc, ids, cfg, jira, record_file, dry_run=False):
             results.append({"id": sid, "durum": "baglanamadi", "key": key, "url": url,
                             "mesaj": f"Kart açıldı ama {source_key} kartına bağlanamadı: {exc}"})
         Path(record_file).write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if not dry_run and results and not stop and any(r["durum"] in ("acildi", "zaten") for r in results):
+        try:
+            commented = post_question_comment(doc, jira, record, record_file)
+            if commented:
+                results.append({"id": "-", "durum": "yorum", "mesaj": f"{commented} kartına soru-yanıt özeti yorum olarak eklendi"})
+        except JiraHatasi as exc:
+            results.append({"id": "-", "durum": "yorum", "mesaj": f"Soru-yanıt yorumu eklenemedi: {exc}"})
     return results
 
 
@@ -459,7 +518,11 @@ def main():
     parser.add_argument("--kesfet", action="store_true", help="Jira'yı tanı ve ayar öner; kart açmaz")
     parser.add_argument("--kaydet", action="store_true", help="--kesfet önerisini ayar dosyasına yaz (yoksa)")
     parser.add_argument("--deneme", action="store_true", help="kart açmadan gönderilecek alanları göster")
+    parser.add_argument("--yorum", action="store_true",
+                        help="soru-yanıt özetini kaynak karta yorum olarak ekle (kart açmaz; kayıtta yoksa)")
     args = parser.parse_args()
+    if args.yorum and (args.deneme or args.kesfet):
+        parser.error("--yorum tek başına kullanılır; --deneme ve --kesfet ile birlikte verilmez")
 
     rep = rg.Report()
     try:
@@ -510,6 +573,17 @@ def main():
     if not ids:
         print("[HATA] açılacak senaryo seçilmedi.", file=sys.stderr)
         return 2
+
+    if args.yorum:
+        record = load_record(record_path(args.input))
+        try:
+            key = post_question_comment(doc, jira, record, record_path(args.input))
+        except JiraHatasi as exc:
+            print(f"[HATA] {exc}", file=sys.stderr)
+            return 1
+        print(f"Soru-yanıt özeti {key} kartına yorum olarak eklendi." if key
+              else "Yorum zaten eklenmiş veya soru yok; bir şey yapılmadı.", file=sys.stderr)
+        return 0
 
     results = create_cards(doc, ids, cfg, jira, record_path(args.input), dry_run=args.deneme)
     for r in results:

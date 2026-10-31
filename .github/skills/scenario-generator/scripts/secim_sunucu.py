@@ -11,8 +11,8 @@ seçilen senaryoları Jira'da Test Senaryosu kartı olarak açar ve kaynak karta
 - --sure-dk dakika boyunca istek gelmezse sunucu kendiliğinden kapanır.
 
 Kullanım:
-    python scripts/secim_sunucu.py test-scenarios/KEY/KEY.json                # tarayıcıda açar
-    python scripts/secim_sunucu.py test-scenarios/KEY/KEY.json --port 8799 --no-open
+    python scripts/secim_sunucu.py test-scenarios/KEY/KEY.json                # adresi yazdırır
+    python scripts/secim_sunucu.py test-scenarios/KEY/KEY.json --port 8799
 
 Çıkış kodu: 0 = sunucu kapandı, 2 = JSON okunamadı veya hatalı.
 """
@@ -23,7 +23,6 @@ import secrets
 import sys
 import threading
 import time
-import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -125,7 +124,6 @@ def main():
     parser.add_argument("input", help="scenario-generator JSON çıktısı (test-scenarios/<KEY>/<KEY>.json)")
     parser.add_argument("--port", type=int, default=0, help="yerel port (varsayılan: boş bir port)")
     parser.add_argument("--ayar", help="Jira ayar dosyası (varsayılan: test-scenarios/jira-ayar.json)")
-    parser.add_argument("--no-open", action="store_true", help="tarayıcıyı açma")
     parser.add_argument("--sure-dk", type=float, default=60, help="bu kadar dakika istek gelmezse kapan (varsayılan 60)")
     args = parser.parse_args()
 
@@ -156,8 +154,6 @@ def main():
     print(f"Seçim ekranı: {url}  (kapatmak için Ctrl+C)", flush=True)
     if session.warning:
         print(f"[UYARI] {session.warning}", flush=True)
-    if not args.no_open:
-        webbrowser.open(url)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

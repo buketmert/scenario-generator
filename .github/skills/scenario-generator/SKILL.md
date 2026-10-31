@@ -1,6 +1,6 @@
 ---
 name: scenario-generator
-description: Jira kartının (story, task, cross-functional, bug) kullanıcının paylaştığı XML dışa aktarımından uçtan uca manuel test senaryoları üretir ve Türkçe Gherkin ile yazar. Önce karttaki iş akışlarını (ana, alternatif, hata) çıkarır, her akış için girişten sonuca bir senaryo yazar; sınır değer, denklik sınıfı gibi ISTQB teknikleri akışların veri satırlarını üretir. Jira'ya bağlanmaz, ek indirmez. Kartın yeterliliğini değerlendirir, eksik ve çelişkili bilgiler için soru üretir. XML'i scripts/parse_jira_xml.py ayrıştırır; belirsizlikler çoktan seçmeli sorulur ve yanıtla devam edilir. LLM yalın bir JSON yazar; scripts/render_gherkin.py onu tamamlar, doğrular, .feature dosyası, yeterlilik raporu ve seçim listesi üretir; scripts/secim_sunucu.py seçim ekranını açar ve kullanıcının işaretlediği senaryoları "Jira'da aç" ile doğrudan Jira'da Test Senaryosu kartı olarak açıp kaynak karta bağlar (scripts/jira_create.py). Jira XML'i, kart içeriği veya kullanıcı hikâyesi verilip test senaryosu, test case, test durumu ya da Gherkin/feature istendiğinde kullan.
+description: Jira kartının (story, task, cross-functional, bug) XML dışa aktarımından veya --from-jira ile REST'ten okunarak uçtan uca manuel test senaryoları üretir ve Türkçe Gherkin ile yazar. Önce karttaki iş akışlarını (ana, alternatif, hata) çıkarır, her akış için girişten sonuca bir senaryo yazar; sınır değer, denklik sınıfı gibi ISTQB teknikleri akışların veri satırlarını üretir. LLM Jira'ya bağlanmaz, ek indirmez; kart okuma ve kart açma script'lerin işidir. Kartın yeterliliğini değerlendirir, eksik ve çelişkili bilgiler için soru üretir. Kartı scripts/parse_jira_xml.py ayrıştırır; belirsizlikler çoktan seçmeli sorulur ve yanıtla devam edilir. LLM yalın bir JSON yazar; scripts/render_gherkin.py onu tamamlar, doğrular, .feature dosyası, yeterlilik raporu ve seçim listesi üretir; scripts/secim_sunucu.py seçim ekranını açar ve kullanıcının işaretlediği senaryoları "Jira'da aç" ile doğrudan Jira'da Test Senaryosu kartı olarak açıp kaynak karta bağlar (scripts/jira_create.py). Jira XML'i, kart içeriği veya kullanıcı hikâyesi verilip test senaryosu, test case, test durumu ya da Gherkin/feature istendiğinde kullan.
 ---
 
 # Scenario Generator
@@ -16,7 +16,8 @@ senaryoları** üretir. Senaryonun nasıl kurulduğu
 (`.github/prompts/senaryo-uret.prompt.md`). Komut `Senaryo Üretici`
 agent'ını kendisi seçer; agent seçmek gerekmez. XML'i sohbete ek olarak
 eklemek yerine çalışma alanına kaydedip yolunu yazmak daha hızlıdır: ek,
-ham XML'i bağlama koyar.
+ham XML'i bağlama koyar. Jira ayarı ve jeton kuruluysa XML yerine kart
+anahtarı da yazılabilir; `parse_jira_xml.py --from-jira` kartı REST'ten okur.
 
 Adımlar arada onay istenmeden uygulanır. Mekanik işi script'ler yapar; LLM
 yalnızca muhakeme gerektiren kısmı (yeterlilik, akışlar, senaryolar) yazar.
@@ -25,23 +26,29 @@ dört araç çağrısına indirilmiştir:
 
 ```text
 1  parse_jira_xml.py --yazdir   → kart metni + JSON yazım kılavuzu tek çıktıda   (LLM'siz)
-2  (gerekirse) çoktan seçmeli sorular, tek tur
-3  yalın <KEY>.json, bir kerede
+2  (gerekirse) çoktan seçmeli sorular → sorulur ve tur burada BİTER, yanıt beklenir
+3  (yanıtlar geldikten sonra) yalın <KEY>.json, bir kerede
 4  render_gherkin.py --all --sunucu --open → tamamlar + doğrular → .feature, rapor,
-   seçim listesi; seçim sunucusu arka planda başlar, ekran tarayıcıda açılır
+   seçim listesi; seçim sunucusu arka planda başlar, ekranın adresi yazdırılır —
+   agent bu adresi sohbetin tarayıcı aracıyla VS Code içinde açar (dış tarayıcı
+   ve yeni VS Code penceresi açılmaz)
 → kullanıcı işaretler → "Jira'da aç" → jira_create.py → Test Senaryosu kartları, kaynak karta bağlı
 ```
 
 Jira'ya LLM bağlanmaz; kartları kullanıcı düğmeye bastığında `jira_create.py`
 açar. Jeton yalnızca kullanıcının ortam değişkenindedir.
 
-Süreç yalnızca üç yerde durur: XML verilmediyse (XML istenir), Adım 4b'deki
-sorularda (yanıt beklenir) ve kart `not_ready` ise (rapor ve sorular verilir).
+Süreç yalnızca üç yerde durur: XML veya kart anahtarı verilmediyse (girdi
+istenir), Adım 4b'deki sorularda (tur sorularla biter, yanıt beklenir) ve
+kart `not_ready` ise (rapor ve sorular verilir). Durmak, o turda başka bir
+çıktı üretmemektir: JSON yazılmaz, senaryo üretilmez, seçim ekranı açılmaz.
 
 - **Girdi:** kullanıcının paylaştığı Jira XML dışa aktarımı (kart → Dışa
-  aktar → XML). `parse_jira_xml.py` onu `<KEY>-kart.md` (LLM'in okuduğu sade
-  metin) ve `<KEY>-kart.json` (script'in kullandığı hazır veri) dosyalarına
-  çevirir. Jira'ya bağlanılmaz, ekler indirilmez.
+  aktar → XML) ya da Jira ayarı ve jeton kuruluysa kart anahtarı
+  (`--from-jira` REST'ten okur). `parse_jira_xml.py` kartı `<KEY>-kart.md`
+  (LLM'in okuduğu sade metin) ve `<KEY>-kart.json` (script'in kullandığı hazır
+  veri) dosyalarına çevirir. Ekler indirilmez; ek içeriği yalnızca kullanıcı
+  dosyayı açıkça paylaştıysa okunur.
 - **LLM'in çıktısı:** yalın bir JSON (`references/output-template.md`):
   yalnızca senaryolar (akış, öncelik, adımlar, veri satırları) ve sorular.
   İzlenebilirlik (test esası, koşul, kapsam öğesi, risk, R1–R10) yazılmaz;
@@ -64,7 +71,7 @@ serbesttir ve `gherkin-format-rules.md`'deki okunabilirlik kurallarına uyar.
 
 | Dosya | Ne zaman |
 |---|---|
-| `scripts/parse_jira_xml.py` | Adım 1'de çalıştırılır: XML → `<KEY>-kart.md` + `<KEY>-kart.json` |
+| `scripts/parse_jira_xml.py` | Adım 1'de çalıştırılır: XML (veya `--from-jira` ile REST) → `<KEY>-kart.md` + `<KEY>-kart.json` |
 | `references/output-template.md` | Adım 1'de okunur: **ne yazılır, ne yazılmaz** — yalın JSON iskeleti, soru ve yanıt biçimi |
 | `references/card-analysis-rules.md` | Adım 1–2'de: kaynak gösterme, çelişki kuralları (§6), R1–R10 (§7) |
 | `references/scenario-construction.md` | Adım 4–5'te: **test senaryosu nasıl oluşturulur** — akışları çıkarma, teknikleri akışlara bağlama, uçtan uca senaryoyu yazma |
@@ -85,6 +92,21 @@ serbesttir ve `gherkin-format-rules.md`'deki okunabilirlik kurallarına uyar.
 ```bash
 python <skill-klasörü>/scripts/parse_jira_xml.py <kart.xml> --out-dir test-scenarios --yazdir
 ```
+
+XML dosyası yerine kartı Jira REST'ten okumak da mümkündür (`--from-jira`):
+
+```bash
+python <skill-klasörü>/scripts/parse_jira_xml.py --from-jira <KART-ANAHTARI> --out-dir test-scenarios --yazdir
+```
+
+Bu modda kart verisi Jira'nın REST arayüzünden okunur; kullanıcı XML dışa
+aktarmak zorunda kalmaz. Jira'ya yalnızca bu script bağlanır: ayar
+`test-scenarios/jira-ayar.json`'dan, jeton yalnızca ortam değişkeninden
+(`JIRA_PAT` ya da `JIRA_EMAIL + JIRA_API_TOKEN`) okunur, hiçbir dosyaya veya
+sohbete yazılmaz. Birden fazla anahtar virgülle verilir. Ek içerik indirilmez;
+bağlı kartların yalnızca özeti tek JQL aramasıyla okunup envanter notuna yazılır
+(durum `not_accessible` kalır). XML'de okunamayan ekler REST'te de
+`not_provided` kalır — ek okunması hâlâ kullanıcı dosyası ister.
 
 XML sohbete yapıştırıldıysa önce bir dosyaya (`test-scenarios/girdi/_girdi.xml`)
 yazılır. Script her kart için `test-scenarios/<KEY>/` altına iki dosya yazar;
@@ -193,11 +215,24 @@ gerekmez.
    davranışlardır ve öyle olduğu belli olur.
 2. Sorarken her soruya iki seçenek daha eklenir: **Bilinmiyor — senaryo
    taslak kalsın** ve **Diğer (yazın)**.
-3. VS Code'da `vscode/askQuestions` aracı varsa sorular onunla, yoksa
-   sohbette harfli liste olarak sorulur ("Q-01: a, Q-02: c" biçiminde
-   yanıtlanır). Yanıt gelene kadar beklenir.
+3. **Sorular bir bilgi listesi değil, kullanıcıya yöneltilen sorulardır:
+   yanıt istenir ve beklenir.** Sorular tek bir blok hâlinde, okunabilir bir
+   liste olarak sorulur; harf kodu ("a", "b", "c") kullanılmaz. Her sorunun
+   altında karttan türetilen olası davranış önerileri tam cümleleriyle
+   sıralanır ve kullanıcının hangi öneriyi seçtiğini (veya kendi metnini)
+   yazarak yanıtlaması istenir. `vscode/askQuestions` aracı kullanılıyorsa
+   bile soru metni bu liste biçiminde yazılır; yalın harf seçenekli form
+   gösterilmez. Soruları "bunlar sorular" diye yanıta sıralayıp akışa
+   devam etmek bu adımı atlatmaktır: her soru önerileriyle birlikte sorulur,
+   kullanıcıdan açıkça yanıt istenir ve tur orada biter. Aynı turda JSON
+   yazılmaz, senaryo üretilmez, seçim ekranı açılmaz; Adım 5 ancak yanıtlar
+   geldikten sonra başlar. Sorular sessizce varsayılanla doldurulmaz.
+   Kullanıcının yanıtı seçtiği önerinin tam metniyle `answer` alanına yazılır
+   (`{"choice": "a"}` yerine öneri metni; şema kabul ediyorsa metin,
+   etmiyorsa öneri metniyle eşlenen harf).
 4. Yanıt `answer` alanına yazılır: `{"choice": "a"}`,
-   `{"choice": "other", "text": "…"}` veya `{"choice": "unknown"}`
+   `{"choice": "other", "text": "…"}` veya `{"choice": "unknown"}`;
+   sohbette seçilen öneri tam metniyle de teyit edilir
    (`output-template.md`).
 5. Yanıt davranışı belirliyorsa kaynağı `{"field": "clarification", "ref":
    "Q-NN"}` olan bir `BR` eklenir; metni yanıtın metnidir. Çözdüğü çelişki
@@ -207,8 +242,9 @@ gerekmez.
    verdiği için kart sahibiyle teyit edilmesi önerilir.
 
 Senaryoyu etkilemeyen sorular (ör. okunamayan bir ekin içeriği) sorulmadan
-rapora yazılır. Kullanıcı yanıt vermek istemezse süreç sorular açık kalarak
-devam eder.
+rapora yazılır. Kullanıcı açıkça yanıtsız devam etmeyi seçerse (ör.
+"bilinmiyor", "öyle geç") süreç sorular `answer: {"choice": "unknown"}` ile
+açık kalarak devam eder; bu da kullanıcının verdiği bir yanıttır.
 
 ### Adım 5: Her akış için uçtan uca senaryo yaz
 
@@ -254,6 +290,7 @@ kapsam ve sayımlar) bu listede yoktur.
 - [ ] Her test esası öğesinin kaynağı var; ek ve yorum kaynakları envanterde tanımlı
 - [ ] Her çelişki kayıtlı; çözülmemiş olanların sorusu var
 - [ ] Senaryoyu etkileyen her soru seçenekleriyle soruldu; yanıtlar `answer` içinde, davranış belirleyen yanıtlar `clarification` kaynaklı BR olarak eklendi
+- [ ] Sorular sorulduysa tur sorularla bitmiş; yanıt gelmeden JSON, senaryo veya seçim ekranı üretilmemiş
 - [ ] R7, R9, R10 sonuçları envanter ve çelişkilerle tutarlı
 - [ ] Kartın bir ana akışı ve kartta tanımlı her red/uyarı davranışı için bir hata akışı (`UC`) var
 - [ ] Her senaryo tam bir `UC` akışına bağlı; aynı akış iki senaryoda değil
@@ -282,7 +319,11 @@ Script `<KEY>-kart.json`'u bulur, JSON'u tamamlar ve doğrular, yanına
 (durağan seçim ekranı) yazar. `--sunucu` seçim sunucusunu (`secim_sunucu.py`)
 bağımsız bir süreç olarak başlatır ve adresini yazar; komut hemen döner,
 terminal sunucuyu beklemez (günlük: `<KEY>-sunucu.log`; sunucu 60 dk işlem
-olmazsa kapanır). `--open` ekranı tarayıcıda açar.
+olmazsa kapanır). `--open` ekranın adresini yazdırır; pencere açmaz —
+adresi **sohbetin tarayıcı aracıyla** (ör. openBrowserPage) **VS Code
+içinde** aç. VS Code CLI'sı (`code --command` / `code --open-url`) entegre
+tarayıcıyı açamadığı için dış tarayıcıya ve yeni pencereye düşer; bu yüzden
+script bilerek hiçbir pencere açmaz.
 
 `[HATA]` varsa yalnızca gösterilen yeri düzelt ve komutu yeniden çalıştır;
 hesaplanan alanlardaki farklar uyarıdır ve JSON'un yeniden yazılmasını
@@ -308,7 +349,10 @@ verir**, açılan ekranda:
 - **Jira'da aç** işaretlileri Test Senaryosu kartı olarak açar, her birini
   kaynak karta bağlar ve satırda kartın bağlantısını gösterir. Açılan
   senaryolar kilitlenir; aynı senaryo ikinci kez açılmaz (`<KEY>-jira.json`).
-  Seçim `<KEY>-secim.md`'ye yazılır.
+  Seçim `<KEY>-secim.md`'ye yazılır. İlk çalıştırmada soru-yanıt özeti
+  kaynak karta da yorum olarak eklenir; kart sahibi oradan kontrol edip
+  yanlış yanıtı düzeltebilir (aynı yorum ikinci kez eklenmez; tek başına
+  eklemek için `jira_create.py … --yorum`).
 - Jira ayarı veya jeton yoksa ekran nedenini yazar ve düğme kapalı kalır
   (aşağıdaki kurulum).
 
@@ -402,9 +446,12 @@ kimlik veya erişim hatasında kalan senaryolar denenmez.
     ayrıntı düzeyini gösterir.
 15. **LLM'in ağ erişimi yok.** Agent Jira'ya veya başka bir adrese bağlanmaz,
     oturum açmaz, kimlik bilgisi istemez veya görmez, ek indirmez. Kart
-    verisinin tek kaynağı paylaşılan XML ve kullanıcının açıkça eklediği
-    dosyalardır. Jira'ya yalnızca `jira_create.py` bağlanır: kullanıcı ekranda
-    "Jira'da aç"a bastığında, açıkça istediğinde ya da `--kesfet` ile.
+    verisinin tek kaynağı kullanıcının paylaştığı XML, `--from-jira` ile
+    REST'ten okunan kart ve kullanıcının açıkça eklediği dosyalardır. Jira'ya
+    yalnızca script'ler bağlanır: kart okuma `parse_jira_xml.py --from-jira`
+    ile, kart açma kullanıcı ekranda "Jira'da aç"a bastığında, açıkça
+    istediğinde ya da `--kesfet` ile `jira_create.py` üzerinden. Jeton
+    yalnızca ortam değişkeninden okunur, hiçbir dosyaya veya sohbete yazılmaz.
 16. **Jira seçimi kullanıcınındır.** Hangi senaryonun kart olacağını kullanıcı
     seçer; agent seçim listesindeki işaretleri yalnızca kullanıcının söylediği
     gibi değiştirir ve kullanıcı istemeden kart açmaz.

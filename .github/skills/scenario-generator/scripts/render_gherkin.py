@@ -30,7 +30,6 @@ import sys
 import time
 import urllib.error
 import urllib.request
-import webbrowser
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
@@ -39,6 +38,19 @@ ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = ROOT / "references" / "output-schema.json"
 SCHEMA_VERSION = "3.1.0"
 COVERAGE_ORDER = ["not_covered", "partially_covered", "covered"]
+
+
+def vscode_open(target):
+    """Hedefi sohbetin tarayıcı aracının açacağı URL olarak yazdırır.
+
+    VS Code CLI'sından (`code --command` / `code --open-url`) entegre tarayıcı
+    açmak desteklenmiyor: her ikisi de bilinmeyen seçenek/protokol uyarısı
+    verip boş pencere(ler) veya dış tarayıcı açıyor. Bu yüzden script pencere
+    açmaz; adresi yazar ve agent bu adresi sohbetin tarayıcı aracıyla (ör.
+    openBrowserPage) VS Code içinde açar. Hedef bir dosya yoluyursa dosya
+    olarak yazdırılır; çıktıyı sohbet görmüyorsa kullanıcıya elle verilmelidir.
+    """
+    print(f"SEÇİM EKRANI: {target}", flush=True)
 
 KEYWORDS = {"given": "Diyelim ki", "when": "Eğer ki", "then": "O zaman", "and": "Ve", "but": "Fakat"}
 PHASE = {"given": 1, "when": 2, "then": 3}
@@ -1058,11 +1070,12 @@ def render_selection(doc, states):
     return "\n".join(out) + "\n"
 
 
-def start_selection_server(input_path, open_browser):
+def start_selection_server(input_path, open_browser=True):
     """secim_sunucu.py'yi bağımsız bir süreç olarak başlatır ve hazır olana kadar bekler.
 
     Bağımsızdır: bu komut hemen döner, agent'ın terminali sunucuyu beklerken takılmaz.
-    Sunucu çıktısı <KEY>-sunucu.log'a gider. Dönüş: (adres veya None, günlük dosyası).
+    Sunucu çıktısı <KEY>-sunucu.log'a gider; pencere açmaz — adres sohbetin tarayıcı
+    aracıyla VS Code içinde açılır. Dönüş: (adres veya None, günlük dosyası).
     """
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -1070,8 +1083,6 @@ def start_selection_server(input_path, open_browser):
     log = Path(input_path).with_name(Path(input_path).stem + "-sunucu.log")
     script = Path(__file__).resolve().parent / "secim_sunucu.py"
     cmd = [sys.executable, "-X", "utf8", str(script), str(input_path), "--port", str(port)]
-    if not open_browser:
-        cmd.append("--no-open")
     flags = ({"creationflags": subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP}
              if os.name == "nt" else {"start_new_session": True})
     with open(log, "w", encoding="utf-8") as out:
@@ -1103,7 +1114,7 @@ def main():
     parser.add_argument("--html", help="senaryoların ekrandan incelenip seçildiği sayfa (.html)")
     parser.add_argument("--sunucu", action="store_true",
                         help="dosyaları ürettikten sonra 'Jira'da aç' düğmeli seçim sunucusunu arka planda başlat")
-    parser.add_argument("--open", action="store_true", help="seçim ekranını (--sunucu ile sunucuyu) tarayıcıda aç")
+    parser.add_argument("--open", action="store_true", help="seçim ekranının adresini yazdır (agent sohbetin tarayıcı aracıyla VS Code içinde açar)")
     parser.add_argument("--card", help="parse_jira_xml.py çıktısı <KEY>-kart.json (varsayılan: JSON'un yanındaki)")
     parser.add_argument("--check", action="store_true", help="yalnızca doğrula, dosya üretme")
     parser.add_argument("--exclude-drafts", action="store_true", help="needs_clarification senaryoları .feature'a yazma")
@@ -1152,7 +1163,7 @@ def main():
             Path(args.html).write_text(selection_page.selection_page(doc, states, kayit), encoding="utf-8")
             written.append(f"{args.html}: seçim ekranı ({selected})")
             if args.open and not args.sunucu:
-                webbrowser.open(Path(args.html).resolve().as_uri())
+                vscode_open(Path(args.html).resolve().as_uri())
         if args.sunucu:
             url, log = start_selection_server(args.input, args.open)
             written.append(f"Seçim ekranı ('Jira'da aç' ile): {url}" if url
@@ -1167,6 +1178,8 @@ def main():
         print(f"Doğrulama başarılı ({len(doc['test_scenarios'])} senaryo).", file=sys.stderr)
     for w in written:
         print(w, file=sys.stderr)
+    if getattr(args, "open", False) and args.sunucu and url:
+        vscode_open(url)  # agent bu adresi sohbetin tarayıcı aracıyla VS Code içinde açar
     return 0
 
 

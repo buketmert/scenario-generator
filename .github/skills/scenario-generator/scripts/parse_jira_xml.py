@@ -8,7 +8,12 @@
                     kabul kriterleri (test_basis adayları). LLM bunları JSON'a
                     yeniden yazmaz.
 
-Jira'ya bağlanmaz; yalnızca verilen dosyayı okur.
+--from-jira ile XML dosyası yerine kart Jira REST'ten okunur: script aynı
+eşlemeyi REST yanıtına uygular (alanlar, yorumlar, ekler, bağlantılar).
+Ek içeriği indirilmez; bağlı kartların yalnızca özeti tek aramayla okunur ve
+envanter notuna yazılır. Jira'ya yalnızca bu modda bağlanılır; ayar
+test-scenarios/jira-ayar.json'dan, jeton yalnızca ortam değişkeninden okunur
+(JIRA_PAT ya da JIRA_EMAIL + JIRA_API_TOKEN) ve hiçbir dosyaya yazılmaz.
 
 --yazdir: kart metnini ve JSON yazım kılavuzunu (references/output-template.md)
 çıktıya da basar. Agent ikisini bu tek araç çağrısının sonucunda alır; ayrı
@@ -19,18 +24,26 @@ Kullanım:
     python scripts/parse_jira_xml.py kart.xml --yazdir           # agent'ın kullandığı biçim
     python scripts/parse_jira_xml.py kart.xml                    # test-scenarios/<KEY>/ altına yazar
     python scripts/parse_jira_xml.py kart.xml --out-dir ciktilar
+    python scripts/parse_jira_xml.py --from-jira MYTKM7-6655     # XML yerine Jira REST'ten okur
+    python scripts/parse_jira_xml.py --from-jira K1,K2 --yazdir  # birden fazla kart
 
-Çıkış kodu: 0 = dosyalar üretildi, 2 = dosya okunamadı veya XML'de kart yok.
+Çıkış kodu: 0 = dosyalar üretildi, 1 = --from-jira ile en az bir kart okunamadı,
+2 = dosya okunamadı, XML'de kart yok veya Jira ayarı/jetonu yok.
 """
 
 import argparse
 import json
 import re
 import sys
+import urllib.parse
 import xml.etree.ElementTree as ET
+from datetime import datetime
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import jira_create as jc  # noqa: E402
 
 TYPE_MAP = {
     "story": "story", "hikaye": "story", "hikâye": "story", "kullanıcı hikayesi": "story",
@@ -233,7 +246,10 @@ def parse_item(item):
                 kind = group.get("description") or child_text(lt, "name") or "bağlantı"
                 for ik in group.findall("issuelink/issuekey"):
                     if (ik.text or "").strip():
-                        linked.append({"key": ik.text.strip(), "link_type": kind})
+                            entry = {"key": ik.text.strip(), "link_type": kind}
+                            if ik.get("summary"):  # --from-jira: bağlı kartın özeti tek JQL aramasıyla okundu
+                                entry["summary"] = ik.get("summary")
+                            linked.append(entry)
     subtasks = [(s.text or "").strip() for s in item.findall("subtasks/subtask") if (s.text or "").strip()]
     linked += [{"key": s, "link_type": "subtask"} for s in subtasks]
 
@@ -279,7 +295,9 @@ def parse_item(item):
                              "summary": NOT_PROVIDED_ATTACHMENT, "basis_ids": []} for a in attachments],
             "comments": [{"id": c["id"], "author": c["author"], "date": c["date"]} for c in comments],
             "linked_issues": [{"key": l["key"], "link_type": l["link_type"], "status": "not_accessible",
-                               "note": f"{l['link_type']}; XML'de yalnızca anahtar var"} for l in linked],
+                               "note": f"{l['link_type']}; " + (f"özeti: {l['summary']}"
+                                                                if l.get("summary") else "XML'de yalnızca anahtar var")}
+                              for l in linked],
             "external_links": [{"name": url, "status": "not_accessible",
                                 "note": "XML modunda bağlantı açılmaz"} for url in external],
         },
@@ -293,6 +311,204 @@ def parse_item(item):
         "acceptance": acceptance, "custom": custom, "comments": comments, "attachments": attachments,
         "linked": linked, "external": external, "summary": summary,
     }
+
+
+# ------------------------------------------------------------------ Jira REST modu
+
+def _inner(val):
+    """REST alanındaki Jira wiki/HTML içeriğini xml tanıdığı hale getirir: alt etiketleri
+    kaçışlayarak string'e çevirir; parse_item'ın inner_html'i yapısını aynı şekilde çözer."""
+    if val is None:
+        return ""
+    if isinstance(val, dict):
+        return "&".join(f"{_escape(k)}={_escape(str(v))}" for k, v in val.items())
+    return _escape(str(val))
+
+
+def _escape(text):
+    return (str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            .replace('"', "&quot;"))
+
+
+JIRA_EPOCH = datetime(1970, 1, 1)
+
+
+def _jira_datetime(ms):
+    """REST'in epoch milisaniyesini XML dışa aktarımdaki RFC 2822 biçimine çevirir."""
+    try:
+        stamp = JIRA_EPOCH.fromtimestamp(int(ms) / 1000)
+    except (TypeError, ValueError, OSError, OverflowError):
+        return ""
+    return stamp.strftime("%a, %d %b %Y %H:%M:%S %z") + " +0300"  # %z platforma göre; tarih hâli jira_date'te
+
+
+def _rest_field(value):
+    """REST alan değerini XML dışa aktarımdaki görünen metin haline çevirir."""
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        return str(value.get("name") or value.get("value") or value.get("displayName") or value.get("key") or "")
+    if isinstance(value, list):
+        return " ".join(str(_rest_field(v) or "") for v in value).strip() or None
+    return str(value)
+
+
+def _item_from_rest(data, jira):
+    """Jira REST karşılığını parse_item'ın okuduğu XML dışa aktarım <item> yapısına çevirir.
+
+    Eşleme: kart → Dışa aktar → XML ile aynı alan adları; ek içerik ve eklerin
+    indirilmesi yoktur (yalnızca ad, boyut, yazar, tarih). Bağlı kartların
+    özeti tek JQL aramasıyla okunur ve <issuelinktype> açıklamalarına yazılır;
+    parse_item bunları not olarak taşır, envanterde durum not_accessible kalır.
+    """
+    f = data.get("fields") or {}
+    item = ET.Element("item")
+    def add(tag, text):
+        el = ET.SubElement(item, tag)
+        el.text = "" if text is None else str(text)
+    add("key", data.get("key"))
+    add("summary", _rest_field(f.get("summary")))
+    add("type", _rest_field(f.get("issuetype")))
+    add("description", _inner(f.get("description")))
+    add("environment", _inner(f.get("environment")))
+    if f.get("priority") is not None:
+        add("priority", _rest_field(f.get("priority")))
+    labels = ET.SubElement(item, "labels")
+    for lab in f.get("labels") or []:
+        ET.SubElement(labels, "label").text = lab
+    for comp in f.get("components") or []:
+        add("component", _rest_field(comp))
+    for v in f.get("versions") or []:
+        add("version", _rest_field(v))
+    for v in f.get("fixVersions") or []:
+        add("fixVersion", _rest_field(v))
+    if f.get("reporter") is not None:
+        add("reporter", _rest_field(f.get("reporter")))
+    if f.get("assignee") is not None:
+        add("assignee", _rest_field(f.get("assignee")))
+    if f.get("status") is not None:
+        add("status", _rest_field(f.get("status")))
+
+    # yorumlar: eskiden yeniye (REST yenisini önce verir)
+    comments_el = ET.SubElement(item, "comments")
+    for c in sorted(f.get("comment", {}).get("comments", []), key=lambda c: c.get("created", 0)):
+        el = ET.SubElement(comments_el, "comment", {
+            "author": _rest_field((c.get("author") or {}).get("name") or c.get("author")),
+            "created": _jira_datetime(c.get("created")),
+        })
+        el.text = _inner(c.get("body"))
+
+    attachments = ET.SubElement(item, "attachments")
+    for a in f.get("attachment") or []:
+        ET.SubElement(attachments, "attachment", {
+            "name": a.get("filename") or a.get("name") or "adsız",
+            "size": str(a.get("size") or 0),
+            "author": _rest_field((a.get("author") or {}).get("name") or a.get("author")),
+            "created": _jira_datetime(a.get("created")),
+        })
+
+    links_el = ET.SubElement(item, "issuelinks")
+    for lt in f.get("issuelinks") or []:
+        ltype = lt.get("type") or {}
+        type_el = ET.SubElement(links_el, "issuelinktype")
+        add_el = ET.SubElement(type_el, "name")
+        add_el.text = ltype.get("name") or ""
+        for side, tag in (("outwardIssue", "outwardlinks"), ("inwardIssue", "inwardlinks")):
+            if lt.get(side):
+                dir_el = ET.SubElement(type_el, tag, {"description": ltype.get(side == "outwardIssue" and "outward" or "inward") or ""})
+                ik = ET.SubElement(ET.SubElement(dir_el, "issuelink"), "issuekey")
+                ik.text = (lt.get(side) or {}).get("key")
+    subtasks = ET.SubElement(item, "subtasks")
+    for st in f.get("subtasks") or []:
+        ET.SubElement(subtasks, "subtask").text = st.get("key") or ""
+    return item
+
+
+def _customfields_from_rest(data, jira):
+    """Kartın özel alanlarını adıyla okuyup <customfield> öğelerine çevirir."""
+    f = data.get("fields") or {}
+    root = ET.Element("customfields")
+    if not f:
+        return root
+    names = {}
+    try:
+        try:
+            edit_meta = jira.request("GET", "/rest/api/2/issue/" + urllib.parse.quote(data.get("key", "")) + "/editmeta")
+            for fid, meta in (edit_meta.get("fields") or {}).items():
+                if fid.startswith("customfield_"):
+                    names[fid] = meta.get("name") or fid
+        except jc.JiraHatasi:
+            pass  # editmeta boş/yasak olabilir; alan adları /field uçtan alınır
+        if not names:
+            for field in jira.request("GET", "/rest/api/2/field"):
+                fid = field.get("id") or ""
+                if fid.startswith("customfield_"):
+                    names[fid] = field.get("name") or fid
+    except jc.JiraHatasi:
+        pass  # meta okunamadıysa özel alanlar kimliğiyle yazılır
+    for fid, value in f.items():
+        if not (isinstance(fid, str) and fid.startswith("customfield_")) or value in (None, [], ""):
+            continue
+        cf = ET.SubElement(root, "customfield", {"id": fid})
+        name_el = ET.SubElement(cf, "customfieldname")
+        name_el.text = names.get(fid, fid)
+        values_el = ET.SubElement(cf, "customfieldvalues")
+        for v in (value if isinstance(value, list) else [value]):
+            el = ET.SubElement(values_el, "customfieldvalue")
+            el.text = _inner(v)
+    return root
+
+
+def fetch_cards(keys, cfg):
+    """Kartları REST'ten okur; döner: [(key, item_öğesi)], hata mesajları."""
+    jira = jc.Jira(cfg)
+    out, errors = [], []
+    for key in keys:
+        try:
+            data = jira.request("GET", f"/rest/api/2/issue/{urllib.parse.quote(key)}")
+        except jc.JiraHatasi as exc:
+            errors.append(f"{key}: {exc}")
+            continue
+        item = _item_from_rest(data, jira)
+        item.append(_customfields_from_rest(data, jira))
+        _add_link_summaries(jira, item, data.get("key", ""))
+        out.append((data.get("key", key), item))
+    return out, errors
+
+
+def _add_link_summaries(jira, item, key):
+    """Bağlı kartların özetlerini tek JQL aramasıyla okur ve bağlantı öğelerine yazar.
+
+    Ek içerik veya ek indirme yoktur; yalnızca anahtar → özet eşlemesidir.
+    """
+    linked = []
+    for lt in item.findall("issuelinks/issuelinktype"):
+        for direction in ("outwardlinks", "inwardlinks"):
+            for group in lt.findall(direction):
+                for ik in group.findall("issuelink/issuekey"):
+                    if (ik.text or "").strip():
+                        linked.append(ik)
+    subtasks = [st for st in item.findall("subtasks/subtask") if (st.text or "").strip()]
+    todo = [el for el in linked + subtasks if (el.text or "").strip() != key]
+    keys = sorted({el.text.strip() for el in todo})
+    if not keys:
+        return
+    summaries = {}
+    try:
+        jql = "key in (" + ", ".join(keys) + ")"
+        data = jira.request("GET", "/rest/api/2/search?" + urllib.parse.urlencode(
+            {"jql": jql, "fields": "summary", "maxResults": min(len(keys), 100)}))
+        for issue in data.get("issues", []):
+            s = (issue.get("fields") or {}).get("summary")
+            if s:
+                summaries[issue.get("key", "")] = s
+    except jc.JiraHatasi:
+        pass  # arama erişimi yoksa özet yok; kart not_accessible kalır
+    if not summaries:
+        return
+    for el in linked:
+        if (el.text or "").strip() in summaries:
+            el.set("summary", summaries[el.text.strip()])
 
 
 def render_markdown(key, info, basis):
@@ -332,8 +548,9 @@ def render_markdown(key, info, basis):
         out += ["Yorum yok.", ""]
     out += ["## Ekler (içerik XML'de yok; envanterde not_provided)", ""]
     out += [f"- {a['name']} ({a['type']}, {round(a['size'] / 1024)} KB)" for a in info["attachments"]] or ["Ek yok."]
-    out += ["", "## Bağlı kartlar (yalnızca anahtar; envanterde not_accessible)", ""]
-    out += [f"- {l['key']} ({l['link_type']})" for l in info["linked"]] or ["Bağlı kart yok."]
+    out += ["", "## Bağlı kartlar (bağlantı özeti REST'ten okunduysa notta)", ""]
+    out += [f"- {l['key']} ({l['link_type']})" + (f" — {l['summary']}" if l.get("summary") else "")
+            for l in info["linked"]] or ["Bağlı kart yok."]
     if info["external"]:
         out += ["", "## Dış bağlantılar (açılmaz; envanterde not_accessible)", ""]
         out += [f"- {u}" for u in info["external"]]
@@ -345,40 +562,81 @@ def main():
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description="Jira XML → <KEY>-kart.md + <KEY>-kart.json")
-    parser.add_argument("xml", help="Jira XML dışa aktarımı")
+    parser.add_argument("xml", nargs="?", help="Jira XML dışa aktarımı (--from-jira yoksa zorunlu)")
+    parser.add_argument("--from-jira", help="XML yerine kartı Jira REST'ten okur: kart anahtarı(ları), "
+                        "virgülle. Ayar test-scenarios/jira-ayar.json, jeton ortam değişkeninden")
+    parser.add_argument("--ayar", help="Jira ayar dosyası (varsayılan: <out-dir>/jira-ayar.json)")
     parser.add_argument("--out-dir", default="test-scenarios",
                         help="çıktı kökü; her kart <out-dir>/<KEY>/ altına yazılır (varsayılan: test-scenarios)")
     parser.add_argument("--yazdir", action="store_true",
                         help="kart metnini ve JSON yazım kılavuzunu çıktıya da bas (agent tek turda okur)")
     args = parser.parse_args()
-    try:
-        root = ET.parse(args.xml).getroot()
-    except (OSError, ET.ParseError) as exc:
-        print(f"[HATA] XML okunamadı: {exc}", file=sys.stderr)
-        return 2
-    items = root.findall("./channel/item") or root.findall(".//item")
-    if not items:
-        print("[HATA] XML'de kart (<item>) yok; Jira'da kart → Dışa aktar → XML ile alınmış dosyayı verin.", file=sys.stderr)
-        return 2
-    for item in items:
-        key, card, info = parse_item(item)
+
+    if args.from_jira:
+        keys = [k.strip() for k in args.from_jira.split(",") if k.strip()]
+        if not keys:
+            print("[HATA] --from-jira için kart anahtarı verin (ör. --from-jira MYTKM7-6655).", file=sys.stderr)
+            return 2
+        cfg_path = Path(args.ayar) if args.ayar else Path(args.out_dir) / "jira-ayar.json"
+        try:
+            cfg = jc.load_config(cfg_path, required=True)
+        except jc.AyarHatasi as exc:
+            print(f"[HATA] {exc}", file=sys.stderr)
+            return 2
+        try:
+            cards, errors = fetch_cards(keys, cfg)
+        except jc.AyarHatasi as exc:  # jeton yok
+            print(f"[HATA] {exc}", file=sys.stderr)
+            return 2
+        items = cards
+        if errors:
+            print("\n".join(f"[HATA] {e}" for e in errors), file=sys.stderr)
+            if not items:
+                return 1
+    else:
+        if not args.xml:
+            parser.error("XML dosyası gerekli (ya da --from-jira <KART-ANAHTARI>)")
+        try:
+            root = ET.parse(args.xml).getroot()
+        except (OSError, ET.ParseError) as exc:
+            print(f"[HATA] XML okunamadı: {exc}", file=sys.stderr)
+            return 2
+        items = root.findall("./channel/item") or root.findall(".//item")
+        if not items:
+            print("[HATA] XML'de kart (<item>) yok; Jira'da kart → Dışa aktar → XML ile alınmış dosyayı verin.", file=sys.stderr)
+            return 2
+    failures = 0 if args.from_jira else None
+    for entry in items:
+        if args.from_jira:
+            key, item = entry
+        else:
+            item = entry
+            key = (item.findtext("key") or "").strip()
         if not key:
             print("[HATA] <key> öğesi olmayan bir kart atlandı.", file=sys.stderr)
             continue
-        folder = Path(args.out_dir) / key
+        card_key, card, info = parse_item(item)
+        if not card_key:
+            print(f"[HATA] {key}: kart okunamadı; <key> öğesi yok.", file=sys.stderr)
+            if args.from_jira:
+                failures += 1
+            continue
+        folder = Path(args.out_dir) / card_key
         folder.mkdir(parents=True, exist_ok=True)
-        text = render_markdown(key, info, card["test_basis_candidates"])
-        (folder / f"{key}-kart.json").write_text(json.dumps(card, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        (folder / f"{key}-kart.md").write_text(text, encoding="utf-8")
+        text = render_markdown(card_key, info, card["test_basis_candidates"])
+        (folder / f"{card_key}-kart.json").write_text(json.dumps(card, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        (folder / f"{card_key}-kart.md").write_text(text, encoding="utf-8")
         inv = card["card_inventory"]
-        print(f"{folder / (key + '-kart.md')}: {len(card['test_basis_candidates'])} kabul kriteri, "
+        print(f"{folder / (card_key + '-kart.md')}: {len(card['test_basis_candidates'])} kabul kriteri, "
               f"{len(inv['comments'])} yorum, {len(inv['attachments'])} ek, {len(inv['linked_issues'])} bağlı kart",
               file=sys.stderr)
         if args.yazdir:
-            print(f"===== {folder / (key + '.json')} dosyasına yazılacak kart =====\n\n{text}")
+            print(f"===== {folder / (card_key + '.json')} dosyasına yazılacak kart =====\n\n{text}")
     if args.yazdir:
         guide = Path(__file__).resolve().parent.parent / "references" / "output-template.md"
         print(f"===== JSON yazım kılavuzu ({guide.name}) =====\n\n{guide.read_text(encoding='utf-8')}")
+    if failures:
+        return 1
     return 0
 
 
